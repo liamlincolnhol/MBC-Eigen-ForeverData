@@ -1,0 +1,18 @@
+# Documentation files (local development only)
+PLAN.md
+CLAUDE.md
+
+# Environment files
+.env.local
+.env
+
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Build outputs
+dist/
+build/
