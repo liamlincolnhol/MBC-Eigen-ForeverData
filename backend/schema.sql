@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS files (
+    fileId TEXT PRIMARY KEY,
+    hash TEXT NOT NULL,
+    blobId TEXT NOT NULL,
+    expiry TEXT NOT NULL,
+    createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+);
