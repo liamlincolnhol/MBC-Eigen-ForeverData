@@ -1,44 +1,75 @@
+import express from "express";
 import multer from "multer";
 import crypto from "crypto";
 import { v4 } from "uuid";
-import { insertFile } from "./db.js";
 import FormData from "form-data";
 import fetch from "node-fetch";
-import express from "express";
+import dotenv from "dotenv";
+import { Wallet, ethers } from "ethers";
+import { insertFile } from "./db.js"; // your DB function
 
-const upload = multer({ storage: multer.memoryStorage() });
+dotenv.config();
+
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
+
+const EIGENDA_AUTH_PK = process.env.EIGENDA_AUTH_PK!;
+const EIGENDA_ETH_ADDRESS = process.env.EIGENDA_ETH_ADDRESS!;
+const EIGENDA_PROXY_URL = process.env.EIGENDA_PROXY_SEPOLIA!;
+
+// Pad bytes to 32-byte alignment for EigenDA
+function padBytes(data: Uint8Array, blockSize = 32): Uint8Array {
+  const padding = blockSize - (data.length % blockSize);
+  if (padding === 0) return data;
+  return Buffer.concat([data, Buffer.alloc(padding)]);
+}
+
+// Sign payment requirement (ECDSA) using ethers.js
+async function signPaymentRequirement(requirement: any, privateKey: string): Promise<string> {
+  const wallet = new Wallet(privateKey);
+  const messageHash = ethers.utils.keccak256(
+    ethers.utils.toUtf8Bytes(JSON.stringify(requirement))
+  );
+  return wallet.signMessage(ethers.utils.arrayify(messageHash));
+}
 
 router.post("/upload", upload.single("file"), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ message: "No file uploaded" });
-  }
+  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
   console.log("Received file:", req.file.originalname, req.file.size);
 
-  // Generate SHA-256 hash of file data
+  // SHA-256 hash for DB tracking
   const hash = crypto.createHash("sha256");
   hash.update(req.file.buffer);
   const fileHash = hash.digest("hex");
 
-  // Generate UUID for DB tracking
   const fileId = v4();
+  const paddedBytes = padBytes(req.file.buffer);
 
-  // 3Prepare FormData for EigenDA proxy
-  const formData = new FormData();
-  formData.append("file", req.file.buffer, {
-    filename: req.file.originalname,
-    contentType: req.file.mimetype,
-  });
+  // Create payment requirement for Sepolia
+  const paymentRequirement = {
+    price: "1000000",          // Example price (in wei or token units)
+    resource: `/upload/${fileId}`,
+    merchantAddress: EIGENDA_ETH_ADDRESS,
+    network: "sepolia",
+  };
 
   try {
-    // Call the EigenDA proxy upload endpoint
-    const response = await fetch("https://disperser-holesky.eigenda.xyz/api/v2/upload", {
+    // Sign the payment requirement
+    const signature = await signPaymentRequirement(paymentRequirement, EIGENDA_AUTH_PK);
+
+    // Prepare FormData for EigenDA proxy
+    const formData = new FormData();
+    formData.append("file", paddedBytes, { filename: req.file.originalname, contentType: req.file.mimetype });
+    formData.append("signer", EIGENDA_ETH_ADDRESS);
+    formData.append("signature", signature);
+    formData.append("paymentRequirement", JSON.stringify(paymentRequirement));
+
+    // Send to Sepolia proxy
+    const response = await fetch(EIGENDA_PROXY_URL, {
       method: "POST",
       body: formData,
-      headers: {
-        ...formData.getHeaders(),
-      },
+      headers: { ...formData.getHeaders() },
     });
 
     if (!response.ok) {
@@ -51,21 +82,18 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     const blobId = data.blobId || data.request_id || null;
     const expiry = data.expiry || null;
 
-    if (!blobId) {
-      throw new Error("No blobId returned from EigenDA.");
-    }
+    if (!blobId) throw new Error("No blobId returned from EigenDA Sepolia");
 
-    // Insert file metadata into your database
+    // Insert file metadata into DB
     await insertFile(fileId, fileHash, blobId, expiry);
 
-    // Respond to client
     res.json({
       fileId,
       link: `https://foreverdata.io/f/${fileId}`,
       expiry,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Upload error:", error);
     res.status(500).json({ message: "Internal server error", error: error.message });
   }

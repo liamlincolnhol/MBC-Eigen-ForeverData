@@ -11,10 +11,10 @@ export async function initializeDb() {
 }
 
 // function to insert new file info
-export async function insertFile(fileId: string, hash: string, blobId: string): Promise<void> {
+export async function insertFile(fileId: string, hash: string, blobId: string, expiry: string): Promise<void> {
   // Set an initial expiryDate for 14 days from now
   const sql = `
-    INSERT INTO files (fileId, hash, blobId, expiryDate)
+    INSERT INTO files (fileId, hash, blobId, expiry)
     VALUES (?, ?, ?, ?))
   `;
   await db.run(sql, fileId, hash, blobId);
