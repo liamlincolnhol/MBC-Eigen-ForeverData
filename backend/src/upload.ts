@@ -10,8 +10,9 @@ import { insertFile } from "./db.js"; // your DB function
 
 dotenv.config();
 
-const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
+//const router = express.Router();<----
+//const upload = multer({ storage: multer.memoryStorage() }); <----
+export const upload = multer({ storage: multer.memoryStorage() }); //NEW
 
 const EIGENDA_AUTH_PK = process.env.EIGENDA_AUTH_PK!;
 const EIGENDA_ETH_ADDRESS = process.env.EIGENDA_ETH_ADDRESS!;
@@ -32,8 +33,8 @@ async function signPaymentRequirement(requirement: any, privateKey: string): Pro
   );
   return wallet.signMessage(ethers.utils.arrayify(messageHash));
 }
-
-router.post("/upload", upload.single("file"), async (req, res) => {
+//router.post("/upload", upload.single("file"), async (req, res) => { <----
+export async function handleUpload(req: express.Request, res: express.Response) { //NEW
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
   console.log("Received file:", req.file.originalname, req.file.size);
@@ -48,7 +49,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
   // Create payment requirement for Sepolia
   const paymentRequirement = {
-    price: "1000000",          // Example price (in wei or token units)
+    price: "1000000", // Example price (in wei or token units)
     resource: `/upload/${fileId}`,
     merchantAddress: EIGENDA_ETH_ADDRESS,
     network: "sepolia",
@@ -97,6 +98,19 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     console.error("Upload error:", error);
     res.status(500).json({ message: "Internal server error", error: error.message });
   }
-});
+//}); <----
+//export default router; <----
+} //NEW
 
-export default router;
+
+//EVERYTHING BELOW IS NEW
+// Fetch a blob from EigenDA proxy by blobId
+export async function fetchBlob(blobId: string) {
+  // You may need to adjust the endpoint and headers for your proxy
+  const response = await fetch(`${EIGENDA_PROXY_URL}/blob/${blobId}`); //is this correct url?
+  if (!response.ok) {
+    throw new Error("Failed to fetch blob from EigenDA");
+  }
+  // Return the response stream for piping
+  return response.body;
+}
