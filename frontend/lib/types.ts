@@ -2,12 +2,8 @@
 
 export interface UploadResponse {
   fileId: string;
-  permanentLink: string;
-  blobId: string;
-  expiryDate: string; // ISO 8601 timestamp
-  fileName: string;
-  fileSize: number; // bytes
-  fileHash: string;
+  link: string;
+  expiry?: string; // ISO 8601 timestamp
 }
 
 export interface RefreshRecord {

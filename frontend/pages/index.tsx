@@ -1,22 +1,13 @@
 import React, { useState } from 'react';
-import { useRouter } from 'next/router';
-import { CheckCircle, ArrowRight, Upload } from 'lucide-react';
+import { CheckCircle, Upload } from 'lucide-react';
 import UploadForm from '../components/UploadForm';
-import FileInfo from '../components/FileInfo';
 import { UploadResponse } from '../lib/types';
 
 export default function HomePage() {
-  const [uploadResult, setUploadResult] = useState<UploadResponse | null>(null);
-  const router = useRouter();
+  const [uploadResult, setUploadResult] = useState<{response: UploadResponse, file: File} | null>(null);
 
-  const handleUploadSuccess = (response: UploadResponse) => {
-    setUploadResult(response);
-  };
-
-  const handleViewDashboard = () => {
-    if (uploadResult) {
-      router.push(`/file/${uploadResult.fileId}`);
-    }
+  const handleUploadSuccess = (response: UploadResponse, file: File) => {
+    setUploadResult({response, file});
   };
 
   const handleUploadAnother = () => {
@@ -43,36 +34,38 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* File Info Component */}
-          <div className="max-w-2xl mx-auto">
-            <FileInfo 
-              metadata={{
-                fileId: uploadResult.fileId,
-                fileName: uploadResult.fileName,
-                fileSize: uploadResult.fileSize,
-                fileHash: uploadResult.fileHash,
-                uploadDate: new Date().toISOString(),
-                permanentLink: uploadResult.permanentLink,
-                currentBlobId: uploadResult.blobId,
-                expiryDate: uploadResult.expiryDate,
-                refreshHistory: []
-              }} 
-            />
+          {/* Simple File Info */}
+          <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-6 space-y-4">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-gray-900">File Details</h3>
+              <p className="text-sm text-gray-600">Name: {uploadResult.file.name}</p>
+              <p className="text-sm text-gray-600">Size: {(uploadResult.file.size / 1024 / 1024).toFixed(2)} MB</p>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-gray-900">Permanent Link</h3>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={uploadResult.response.link}
+                  readOnly
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+                />
+                <button
+                  onClick={() => navigator.clipboard.writeText(uploadResult.response.link)}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-center space-x-4">
-            <button
-              onClick={handleViewDashboard}
-              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200"
-            >
-              View Dashboard
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </button>
-            
+          {/* Action Button */}
+          <div className="flex justify-center">
             <button
               onClick={handleUploadAnother}
-              className="inline-flex items-center px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors duration-200"
+              className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors duration-200"
             >
               <Upload className="w-4 h-4 mr-2" />
               Upload Another File

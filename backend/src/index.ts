@@ -1,7 +1,8 @@
 import express from "express";
 import multer from "multer";
-import { handleUpload } from "./upload";
-import { handleFetch } from "./fetch";
+import cors from "cors";
+import { handleUpload } from "./upload.js";
+import { handleFetch } from "./fetch.js";
 
 const app = express();
 
@@ -9,6 +10,10 @@ const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Middleware
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

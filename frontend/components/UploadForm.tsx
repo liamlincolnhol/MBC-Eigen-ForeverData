@@ -5,7 +5,7 @@ import { uploadFile } from '../lib/api';
 import { UploadResponse, ApiError } from '../lib/types';
 
 interface UploadFormProps {
-  onUploadSuccess: (response: UploadResponse) => void;
+  onUploadSuccess: (response: UploadResponse, file: File) => void;
 }
 
 export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
@@ -26,7 +26,7 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
         setProgress(progressValue);
       });
       
-      onUploadSuccess(response);
+      onUploadSuccess(response, file);
       setIsUploading(false);
       setProgress(0);
     } catch (err) {
@@ -39,9 +39,6 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {
-      '*/*': []
-    },
     multiple: false,
     disabled: isUploading
   });

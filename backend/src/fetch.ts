@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { getFile } from "./db";
-import { fetchBlob } from "./upload";
+import { getFile } from "./db.js";
+import { fetchBlob } from "./upload.js";
 
 /**
  *  - Takes a permanent fileId (from https://foreverdata.io/f/:fileId)

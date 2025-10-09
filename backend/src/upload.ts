@@ -28,10 +28,10 @@ function padBytes(data: Uint8Array, blockSize = 32): Uint8Array {
 // Sign payment requirement (ECDSA) using ethers.js
 async function signPaymentRequirement(requirement: any, privateKey: string): Promise<string> {
   const wallet = new Wallet(privateKey);
-  const messageHash = ethers.utils.keccak256(
-    ethers.utils.toUtf8Bytes(JSON.stringify(requirement))
+  const messageHash = ethers.keccak256(
+    ethers.toUtf8Bytes(JSON.stringify(requirement))
   );
-  return wallet.signMessage(ethers.utils.arrayify(messageHash));
+  return wallet.signMessage(ethers.getBytes(messageHash));
 }
 //router.post("/upload", upload.single("file"), async (req, res) => { <----
 export async function handleUpload(req: express.Request, res: express.Response) { //NEW
@@ -79,7 +79,7 @@ export async function handleUpload(req: express.Request, res: express.Response) 
       return res.status(500).json({ message: "Failed to upload to EigenDA", error: err });
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     const blobId = data.blobId || data.request_id || null;
     const expiry = data.expiry || null;
 
