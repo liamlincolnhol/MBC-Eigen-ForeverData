@@ -56,7 +56,8 @@ async function startServer() {
     
     app.listen(PORT, () => {
       console.log(`ForeverData backend running on port ${PORT}`);
-      console.log(`Stable link: https://foreverdata.io/f/:fileId`);
+      console.log(`Public URL: https://8a32f4028ff1.ngrok-free.app`);
+      console.log(`Stable links: https://8a32f4028ff1.ngrok-free.app/f/:fileId`);
       logEigenDAConfig();
     });
   } catch (error) {

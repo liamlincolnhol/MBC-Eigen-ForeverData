@@ -27,11 +27,11 @@ export async function handleFetch(req: Request, res: Response) {
       return;
     }
 
-    // Prepare response headers - do we want this??
+    // Use original filename for download
     res.setHeader("Content-Type", "application/octet-stream");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${fileId}.bin"`
+      `attachment; filename="${record.fileName}"`
     );
 
     // Stream the blob directly back to client

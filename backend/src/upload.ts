@@ -69,12 +69,12 @@ export async function handleUpload(req: express.Request, res: express.Response) 
       ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
       : null;
 
-    // Store certificate instead of blobId
-    await insertFile(fileId, fileHash, certificate, expiry);
+    // Store certificate and original filename
+    await insertFile(fileId, req.file.originalname, fileHash, certificate, expiry);
 
     res.json({
       fileId,
-      link: `https://foreverdata.io/f/${fileId}`,
+      link: `https://8a32f4028ff1.ngrok-free.app/f/${fileId}`,
       expiry
     });
 
