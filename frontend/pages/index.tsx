@@ -40,6 +40,10 @@ export default function HomePage() {
               <h3 className="text-lg font-semibold text-gray-900">File Details</h3>
               <p className="text-sm text-gray-600">Name: {uploadResult.file.name}</p>
               <p className="text-sm text-gray-600">Size: {(uploadResult.file.size / 1024 / 1024).toFixed(2)} MB</p>
+              <p className="text-sm text-gray-600">
+                Expires: {new Date(uploadResult.response.expiryDate).toLocaleDateString()}
+                &nbsp;({uploadResult.response.daysRemaining} days remaining)
+              </p>
             </div>
             
             <div className="space-y-2">
@@ -47,12 +51,12 @@ export default function HomePage() {
               <div className="flex space-x-2">
                 <input
                   type="text"
-                  value={uploadResult.response.link}
+                  value={uploadResult.response.permanentLink}
                   readOnly
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
                 />
                 <button
-                  onClick={() => navigator.clipboard.writeText(uploadResult.response.link)}
+                  onClick={() => navigator.clipboard.writeText(uploadResult.response.permanentLink)}
                   className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700"
                 >
                   Copy

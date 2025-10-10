@@ -5,6 +5,7 @@ import { v4 } from "uuid";
 import fetch from "node-fetch";
 import { insertFile } from "./db.js";
 import { eigenDAConfig } from "./config.js";
+import { calculateExpiry, getRemainingDays } from "./utils.js";
 
 export const upload = multer({ storage: multer.memoryStorage() });
 export async function handleUpload(req: express.Request, res: express.Response) {
@@ -64,18 +65,23 @@ export async function handleUpload(req: express.Request, res: express.Response) 
 
     console.log(`Upload successful. Certificate: ${certificate.slice(0, 20)}...`);
 
-    // Calculate expiry for real EigenDA (2 weeks from now)
-    const expiry = eigenDAConfig.mode !== 'memstore' 
-      ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
-      : null;
+    // Calculate expiry (2 weeks from now) for all modes to enable testing
+    const expiry = calculateExpiry();
 
     // Store certificate and original filename
     await insertFile(fileId, req.file.originalname, fileHash, certificate, expiry);
 
     res.json({
       fileId,
-      link: `https://8a32f4028ff1.ngrok-free.app/f/${fileId}`,
-      expiry
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      fileHash: fileHash,
+      uploadDate: new Date().toISOString(),
+      permanentLink: `https://8a32f4028ff1.ngrok-free.app/f/${fileId}`,
+      currentBlobId: certificate,
+      expiryDate: expiry,
+      daysRemaining: getRemainingDays(expiry),
+      refreshHistory: []
     });
 
   } catch (error: any) {

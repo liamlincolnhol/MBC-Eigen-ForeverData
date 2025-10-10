@@ -18,14 +18,12 @@ export async function initializeDb() {
 }
 
 // function to insert new file info
-export async function insertFile(fileId: string, fileName: string, hash: string, certificate: string, expiry: string | null): Promise<void> {
+export async function insertFile(fileId: string, fileName: string, hash: string, certificate: string, expiry: string): Promise<void> {
   const sql = `
     INSERT INTO files (fileId, fileName, hash, blobId, expiry)
     VALUES (?, ?, ?, ?, ?)
   `;
-  // Use empty string instead of null for memstore compatibility with NOT NULL constraint
-  const expiryValue = expiry || '';
-  await db.run(sql, fileId, fileName, hash, certificate, expiryValue);
+  await db.run(sql, [fileId, fileName, hash, certificate, expiry]);
 }
 
 // function to retrieve file info using fileId

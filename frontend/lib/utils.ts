@@ -28,6 +28,22 @@ export function getTimeUntilExpiry(expiryDate: string): string {
   }
 }
 
+// Format date to a user-friendly string
+export function formatDisplayDate(date: string): string {
+  try {
+    const parsedDate = parseISO(date);
+    return parsedDate.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    return 'Invalid date';
+  }
+}
+
 // Get status level based on days remaining until expiry
 export function getStatusLevel(expiryDate: string): StatusLevel {
   try {

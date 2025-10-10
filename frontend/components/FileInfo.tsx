@@ -43,6 +43,28 @@ export default function FileInfo({ metadata }: FileInfoProps) {
           </div>
         </div>
 
+        {/* Expiry Date */}
+        <div className="flex items-start space-x-3">
+          <Calendar className="w-5 h-5 text-gray-400 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900">Expires</p>
+            <p className="text-sm text-gray-600">
+              {metadata.expiryDate ? (
+                <>
+                  {formatDisplayDate(metadata.expiryDate)}
+                  {metadata.daysRemaining && (
+                    <span className="ml-2 text-gray-500">
+                      ({metadata.daysRemaining} days remaining)
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="text-gray-500">Never</span>
+              )}
+            </p>
+          </div>
+        </div>
+
         {/* File Size */}
         <div className="flex items-start space-x-3">
           <div className="w-5 h-5 text-gray-400 mt-0.5 flex items-center justify-center">

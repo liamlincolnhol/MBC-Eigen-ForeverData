@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import { getFile } from "./db.js";
 import { fetchBlob } from "./upload.js";
+import { isExpired, getRemainingDays } from "./utils.js";
 
 /**
  *  - Takes a permanent fileId (from https://foreverdata.io/f/:fileId)
  *  - Looks up metadata (blobId + expiry) in the DB
+ *  - Checks if file has expired
  *  - Fetches the current blob from EigenDA
  *  - Streams it directly to the user
  */
@@ -17,6 +19,15 @@ export async function handleFetch(req: Request, res: Response) {
     const record = await getFile(fileId);
     if (!record) {
       res.status(404).json({ error: "File not found" });
+      return;
+    }
+
+    // Check if file has expired
+    if (record.expiry && isExpired(record.expiry)) {
+      res.status(410).json({ 
+        error: "File has expired",
+        expiry: record.expiry
+      });
       return;
     }
 
