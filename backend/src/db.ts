@@ -1,5 +1,7 @@
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
+import fs from "fs";
+import path from "path";
 
 let db;
 
@@ -8,16 +10,22 @@ export async function initializeDb() {
     filename: 'fileInfo.db',
     driver: sqlite3.Database
   });
+  
+  // Load and execute schema.sql
+  const schemaPath = path.join(process.cwd(), 'schema.sql');
+  const schema = fs.readFileSync(schemaPath, 'utf8');
+  await db.exec(schema);
 }
 
 // function to insert new file info
-export async function insertFile(fileId: string, hash: string, blobId: string, expiry: string): Promise<void> {
-  // Set an initial expiryDate for 14 days from now
+export async function insertFile(fileId: string, hash: string, certificate: string, expiry: string | null): Promise<void> {
   const sql = `
     INSERT INTO files (fileId, hash, blobId, expiry)
-    VALUES (?, ?, ?, ?))
+    VALUES (?, ?, ?, ?)
   `;
-  await db.run(sql, fileId, hash, blobId);
+  // Use empty string instead of null for memstore compatibility with NOT NULL constraint
+  const expiryValue = expiry || '';
+  await db.run(sql, fileId, hash, certificate, expiryValue);
 }
 
 // function to retrieve file info using fileId

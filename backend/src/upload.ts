@@ -2,39 +2,12 @@ import express from "express";
 import multer from "multer";
 import crypto from "crypto";
 import { v4 } from "uuid";
-import FormData from "form-data";
 import fetch from "node-fetch";
-import dotenv from "dotenv";
-import { Wallet, ethers } from "ethers";
-import { insertFile } from "./db.js"; // your DB function
+import { insertFile } from "./db.js";
+import { eigenDAConfig } from "./config.js";
 
-dotenv.config();
-
-//const router = express.Router();<----
-//const upload = multer({ storage: multer.memoryStorage() }); <----
-export const upload = multer({ storage: multer.memoryStorage() }); //NEW
-
-const EIGENDA_AUTH_PK = process.env.EIGENDA_AUTH_PK!;
-const EIGENDA_ETH_ADDRESS = process.env.EIGENDA_ETH_ADDRESS!;
-const EIGENDA_PROXY_URL = process.env.EIGENDA_PROXY_SEPOLIA!;
-
-// Pad bytes to 32-byte alignment for EigenDA
-function padBytes(data: Uint8Array, blockSize = 32): Uint8Array {
-  const padding = blockSize - (data.length % blockSize);
-  if (padding === 0) return data;
-  return Buffer.concat([data, Buffer.alloc(padding)]);
-}
-
-// Sign payment requirement (ECDSA) using ethers.js
-async function signPaymentRequirement(requirement: any, privateKey: string): Promise<string> {
-  const wallet = new Wallet(privateKey);
-  const messageHash = ethers.keccak256(
-    ethers.toUtf8Bytes(JSON.stringify(requirement))
-  );
-  return wallet.signMessage(ethers.getBytes(messageHash));
-}
-//router.post("/upload", upload.single("file"), async (req, res) => { <----
-export async function handleUpload(req: express.Request, res: express.Response) { //NEW
+export const upload = multer({ storage: multer.memoryStorage() });
+export async function handleUpload(req: express.Request, res: express.Response) {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
   console.log("Received file:", req.file.originalname, req.file.size);
@@ -45,72 +18,93 @@ export async function handleUpload(req: express.Request, res: express.Response) 
   const fileHash = hash.digest("hex");
 
   const fileId = v4();
-  const paddedBytes = padBytes(req.file.buffer);
-
-  // Create payment requirement for Sepolia
-  const paymentRequirement = {
-    price: "1000000", // Example price (in wei or token units)
-    resource: `/upload/${fileId}`,
-    merchantAddress: EIGENDA_ETH_ADDRESS,
-    network: "sepolia",
-  };
 
   try {
-    // Sign the payment requirement
-    const signature = await signPaymentRequirement(paymentRequirement, EIGENDA_AUTH_PK);
+    console.log(`Uploading to EigenDA (${eigenDAConfig.mode})...`);
+    
+    // POST raw file data to proxy
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), eigenDAConfig.timeout);
+    
+    const response = await fetch(
+      `${eigenDAConfig.proxyUrl}/put?commitment_mode=standard`, 
+      {
+        method: "POST",
+        body: req.file.buffer,
+        headers: {
+          'Content-Type': 'application/octet-stream'
+        },
+        signal: controller.signal
+      }
+    );
+    
+    clearTimeout(timeoutId);
 
-    // Prepare FormData for EigenDA proxy
-    const formData = new FormData();
-    formData.append("file", paddedBytes, { filename: req.file.originalname, contentType: req.file.mimetype });
-    formData.append("signer", EIGENDA_ETH_ADDRESS);
-    formData.append("signature", signature);
-    formData.append("paymentRequirement", JSON.stringify(paymentRequirement));
-
-    // Send to Sepolia proxy
-    const response = await fetch(EIGENDA_PROXY_URL, {
-      method: "POST",
-      body: formData,
-      headers: { ...formData.getHeaders() },
-    });
-
-    if (!response.ok) {
-      const err = await response.text();
-      console.error("EigenDA upload failed:", err);
-      return res.status(500).json({ message: "Failed to upload to EigenDA", error: err });
+    // Handle 503 for real EigenDA failover
+    if (response.status === 503) {
+      console.error("EigenDA unavailable - service temporarily down");
+      return res.status(503).json({ 
+        message: "EigenDA service unavailable", 
+        error: "Storage service temporarily down" 
+      });
     }
 
-    const data = await response.json() as any;
-    const blobId = data.blobId || data.request_id || null;
-    const expiry = data.expiry || null;
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Proxy upload failed: ${response.status} - ${errorText}`);
+      return res.status(500).json({ 
+        message: "Failed to upload to EigenDA", 
+        error: `Proxy error: ${response.status}` 
+      });
+    }
 
-    if (!blobId) throw new Error("No blobId returned from EigenDA Sepolia");
+    // Get certificate as response body (binary)
+    const certificateBuffer = await response.arrayBuffer();
+    const certificate = Buffer.from(certificateBuffer).toString('hex');
 
-    // Insert file metadata into DB
-    await insertFile(fileId, fileHash, blobId, expiry);
+    console.log(`Upload successful. Certificate: ${certificate.slice(0, 20)}...`);
+
+    // Calculate expiry for real EigenDA (2 weeks from now)
+    const expiry = eigenDAConfig.mode !== 'memstore' 
+      ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+
+    // Store certificate instead of blobId
+    await insertFile(fileId, fileHash, certificate, expiry);
 
     res.json({
       fileId,
       link: `https://foreverdata.io/f/${fileId}`,
-      expiry,
+      expiry
     });
 
   } catch (error: any) {
     console.error("Upload error:", error);
-    res.status(500).json({ message: "Internal server error", error: error.message });
+    res.status(500).json({ 
+      message: "Internal server error", 
+      error: error.message 
+    });
   }
-//}); <----
-//export default router; <----
-} //NEW
+}
 
-
-//EVERYTHING BELOW IS NEW
-// Fetch a blob from EigenDA proxy by blobId
-export async function fetchBlob(blobId: string) {
-  // You may need to adjust the endpoint and headers for your proxy
-  const response = await fetch(`${EIGENDA_PROXY_URL}/blob/${blobId}`); //is this correct url?
+// Fetch a blob from EigenDA proxy using certificate
+export async function fetchBlob(certificate: string) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), eigenDAConfig.timeout);
+  
+  const response = await fetch(
+    `${eigenDAConfig.proxyUrl}/get/${certificate}?commitment_mode=standard`,
+    {
+      signal: controller.signal
+    }
+  );
+  
+  clearTimeout(timeoutId);
+  
   if (!response.ok) {
-    throw new Error("Failed to fetch blob from EigenDA");
+    throw new Error(`Failed to fetch blob from EigenDA: ${response.status}`);
   }
+  
   // Return the response stream for piping
   return response.body;
 }

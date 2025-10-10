@@ -20,10 +20,8 @@ export async function handleFetch(req: Request, res: Response) {
       return;
     }
 
-    // Ask EigenDA for the blob
-    const blobStream = await fetchBlob(record.blobId); 
-    //does this work with proxy call?
-    //should we call api here instead of going through upload?
+    // Ask EigenDA for the blob using certificate
+    const blobStream = await fetchBlob(record.blobId); // blobId now contains certificate
     if (!blobStream) {
       res.status(502).json({ error: "Failed to retrieve blob from EigenDA" });
       return;
@@ -39,7 +37,7 @@ export async function handleFetch(req: Request, res: Response) {
     // Stream the blob directly back to client
     blobStream.pipe(res);
 
-    console.log(`Served file ${fileId} (blobId=${record.blobId})`);
+    console.log(`Served file ${fileId} (certificate=${record.blobId.slice(0, 20)}...)`);
   } catch (err) {
     console.error(`Error serving file ${fileId}:`, err);
     res.status(500).json({ error: "Internal server error" });

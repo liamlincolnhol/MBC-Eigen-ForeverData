@@ -3,6 +3,8 @@ import multer from "multer";
 import cors from "cors";
 import { handleUpload } from "./upload.js";
 import { handleFetch } from "./fetch.js";
+import { logEigenDAConfig } from "./config.js";
+import { initializeDb } from "./db.js";
 
 const app = express();
 
@@ -46,7 +48,21 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 // === Start Server ===
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`ForeverData backend running on port ${PORT}`);
-  console.log(`Stable link: https://foreverdata.io/f/:fileId`);
-});
+async function startServer() {
+  try {
+    // Initialize database and load schema
+    await initializeDb();
+    console.log('Database initialized successfully');
+    
+    app.listen(PORT, () => {
+      console.log(`ForeverData backend running on port ${PORT}`);
+      console.log(`Stable link: https://foreverdata.io/f/:fileId`);
+      logEigenDAConfig();
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
