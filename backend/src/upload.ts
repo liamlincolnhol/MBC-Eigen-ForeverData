@@ -7,28 +7,31 @@ import { insertFile } from "./db.js";
 import { eigenDAConfig } from "./config.js";
 import { calculateExpiry, getRemainingDays } from "./utils.js";
 
+// using memory storage
 export const upload = multer({ storage: multer.memoryStorage() });
+
 export async function handleUpload(req: express.Request, res: express.Response) {
   if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-  console.log("Received file:", req.file.originalname, req.file.size);
+  console.log("\nProcessing:", req.file.originalname, `(${req.file.size} bytes)`);
 
-  // SHA-256 hash for DB tracking
+  // Calculate hash
   const hash = crypto.createHash("sha256");
   hash.update(req.file.buffer);
   const fileHash = hash.digest("hex");
+  console.log("Hash:", fileHash);
 
   const fileId = v4();
 
-  try {
+  try {    
+    // Upload file to EigenDA
     console.log(`Uploading to EigenDA (${eigenDAConfig.mode})...`);
     
-    // POST raw file data to proxy
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), eigenDAConfig.timeout);
     
     const response = await fetch(
-      `${eigenDAConfig.proxyUrl}/put?commitment_mode=standard`, 
+      `${eigenDAConfig.proxyUrl}/put`, 
       {
         method: "POST",
         body: req.file.buffer,
@@ -41,9 +44,8 @@ export async function handleUpload(req: express.Request, res: express.Response) 
     
     clearTimeout(timeoutId);
 
-    // Handle 503 for real EigenDA failover
     if (response.status === 503) {
-      console.error("EigenDA unavailable - service temporarily down");
+      console.error("EigenDA unavailable");
       return res.status(503).json({ 
         message: "EigenDA service unavailable", 
         error: "Storage service temporarily down" 
@@ -55,22 +57,23 @@ export async function handleUpload(req: express.Request, res: express.Response) 
       console.error(`Proxy upload failed: ${response.status} - ${errorText}`);
       return res.status(500).json({ 
         message: "Failed to upload to EigenDA", 
-        error: `Proxy error: ${response.status}` 
+        error: `Proxy error: ${response.status}`,
+        details: errorText
       });
     }
 
-    // Get certificate as response body (binary)
+    // Get the certificate (blob ID) from response
     const certificateBuffer = await response.arrayBuffer();
     const certificate = Buffer.from(certificateBuffer).toString('hex');
 
-    console.log(`Upload successful. Certificate: ${certificate.slice(0, 20)}...`);
+    console.log(`Upload successful!`);
+    console.log(`Blob ID: 0x${certificate.slice(0, 20)}...`);
 
-    // Calculate expiry (2 weeks from now) for all modes to enable testing
+    // Store in database
     const expiry = calculateExpiry();
-
-    // Store certificate and original filename
     await insertFile(fileId, req.file.originalname, fileHash, certificate, expiry);
 
+    // Respond with metadata
     res.json({
       fileId,
       fileName: req.file.originalname,
@@ -78,7 +81,7 @@ export async function handleUpload(req: express.Request, res: express.Response) 
       fileHash: fileHash,
       uploadDate: new Date().toISOString(),
       permanentLink: `https://8a32f4028ff1.ngrok-free.app/f/${fileId}`,
-      currentBlobId: certificate,
+      blobId: `0x${certificate}`,
       expiryDate: expiry,
       daysRemaining: getRemainingDays(expiry),
       refreshHistory: []
@@ -93,13 +96,16 @@ export async function handleUpload(req: express.Request, res: express.Response) 
   }
 }
 
-// Fetch a blob from EigenDA proxy using certificate
+// Fetch Function
 export async function fetchBlob(certificate: string) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), eigenDAConfig.timeout);
   
+  // Remove '0x' prefix if present
+  const cleanCertificate = certificate.startsWith('0x') ? certificate.slice(2) : certificate;
+  
   const response = await fetch(
-    `${eigenDAConfig.proxyUrl}/get/${certificate}?commitment_mode=standard`,
+    `${eigenDAConfig.proxyUrl}/get/0x${cleanCertificate}`,
     {
       signal: controller.signal
     }
@@ -111,6 +117,5 @@ export async function fetchBlob(certificate: string) {
     throw new Error(`Failed to fetch blob from EigenDA: ${response.status}`);
   }
   
-  // Return the response stream for piping
   return response.body;
 }

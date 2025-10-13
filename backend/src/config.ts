@@ -6,10 +6,8 @@ interface EigenDAConfig {
 
 export const eigenDAConfig: EigenDAConfig = {
   proxyUrl: process.env.EIGENDA_PROXY_URL || 'http://localhost:3100',
-  timeout: process.env.EIGENDA_TIMEOUT 
-    ? parseInt(process.env.EIGENDA_TIMEOUT) 
-    : (process.env.NODE_ENV === 'production' ? 20 * 60 * 1000 : 5000), // 20 min for real, 5s for memstore
-  mode: (process.env.EIGENDA_MODE as 'memstore' | 'testnet' | 'mainnet') || 'memstore'
+  timeout: 20 * 60 * 1000,
+  mode: (process.env.EIGENDA_MODE as 'memstore' | 'testnet' | 'mainnet') || 'testnet'
 };
 
 // Utility function to log configuration on startup
