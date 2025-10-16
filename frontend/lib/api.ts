@@ -1,7 +1,7 @@
 import axios, { AxiosProgressEvent } from 'axios';
 import { UploadResponse, FileMetadata, ApiError } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.foreverdata.live';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -39,7 +39,7 @@ export async function uploadFile(
 // Get file metadata by ID
 export async function getFileMetadata(fileId: string): Promise<FileMetadata> {
   try {
-    const response = await api.get<FileMetadata>(`/api/file/${fileId}`);
+    const response = await api.get<FileMetadata>(`/f/${fileId}`);
     return response.data;
   } catch (error) {
     throw handleApiError(error, 'Failed to fetch file metadata');
