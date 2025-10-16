@@ -80,7 +80,7 @@ export async function handleUpload(req: express.Request, res: express.Response) 
       fileSize: req.file.size,
       fileHash: fileHash,
       uploadDate: new Date().toISOString(),
-      permanentLink: `https://foreverdata.live/f/${fileId}`,
+      permanentLink: `https://api.foreverdata.live/f/${fileId}`,
       blobId: `0x${certificate}`,
       expiryDate: expiry,
       daysRemaining: getRemainingDays(expiry),
