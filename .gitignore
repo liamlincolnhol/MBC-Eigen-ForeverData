@@ -5,6 +5,7 @@ CLAUDE.md
 # Environment files
 .env.local
 .env
+backend/.env.proxy
 
 # Dependencies
 node_modules/
