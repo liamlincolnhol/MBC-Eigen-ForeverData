@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import { getFile } from "./db.js";
 import { fetchBlob } from "./upload.js";
+import { isExpired, getRemainingDays } from "./utils.js";
 
 /**
  *  - Takes a permanent fileId (from https://foreverdata.io/f/:fileId)
  *  - Looks up metadata (blobId + expiry) in the DB
+ *  - Checks if file has expired
  *  - Fetches the current blob from EigenDA
  *  - Streams it directly to the user
  */
@@ -20,26 +22,33 @@ export async function handleFetch(req: Request, res: Response) {
       return;
     }
 
-    // Ask EigenDA for the blob
-    const blobStream = await fetchBlob(record.blobId); 
-    //does this work with proxy call?
-    //should we call api here instead of going through upload?
+    // Check if file has expired
+    if (record.expiry && isExpired(record.expiry)) {
+      res.status(410).json({ 
+        error: "File has expired",
+        expiry: record.expiry
+      });
+      return;
+    }
+
+    // Ask EigenDA for the blob using certificate
+    const blobStream = await fetchBlob(record.blobId); // blobId now contains certificate
     if (!blobStream) {
       res.status(502).json({ error: "Failed to retrieve blob from EigenDA" });
       return;
     }
 
-    // Prepare response headers - do we want this??
+    // Use original filename for download
     res.setHeader("Content-Type", "application/octet-stream");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${fileId}.bin"`
+      `attachment; filename="${record.fileName}"`
     );
 
     // Stream the blob directly back to client
     blobStream.pipe(res);
 
-    console.log(`Served file ${fileId} (blobId=${record.blobId})`);
+    console.log(`Served file ${fileId} (certificate=${record.blobId.slice(0, 20)}...)`);
   } catch (err) {
     console.error(`Error serving file ${fileId}:`, err);
     res.status(500).json({ error: "Internal server error" });

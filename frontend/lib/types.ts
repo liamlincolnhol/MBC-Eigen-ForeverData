@@ -2,8 +2,15 @@
 
 export interface UploadResponse {
   fileId: string;
-  link: string;
-  expiry?: string; // ISO 8601 timestamp
+  fileName: string;
+  fileSize: number;
+  fileHash: string;
+  uploadDate: string;
+  permanentLink: string;
+  currentBlobId: string;
+  expiryDate: string;
+  daysRemaining: number;
+  refreshHistory: RefreshRecord[];
 }
 
 export interface RefreshRecord {
@@ -22,6 +29,7 @@ export interface FileMetadata {
   permanentLink: string;
   currentBlobId: string;
   expiryDate: string; // ISO 8601 timestamp
+  daysRemaining?: number; // days until expiry
   refreshHistory: RefreshRecord[];
 }
 

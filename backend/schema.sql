@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS files (
     fileId TEXT PRIMARY KEY,
+    fileName TEXT NOT NULL,
     hash TEXT NOT NULL,
     blobId TEXT NOT NULL,
     expiry TEXT NOT NULL,

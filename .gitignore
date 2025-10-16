@@ -5,6 +5,7 @@ CLAUDE.md
 # Environment files
 .env.local
 .env
+backend/.env.proxy
 
 # Dependencies
 node_modules/
@@ -16,3 +17,18 @@ out/
 # Build outputs
 dist/
 build/
+
+# Test files
+backend/filename-test.txt
+backend/ngrok-test.txt
+backend/stable-link-test.txt
+backend/test-upload.txt
+
+# Database files
+backend/fileInfo.db
+
+# Build artifacts
+frontend/tsconfig.tsbuildinfo
+
+# Certificates
+backend/cert.bin.DS_Store
