@@ -20,24 +20,17 @@ const allowedOrigins = [
   'https://mbc-eigen-forever-data-f6tdvcz02-liam-lincolnhols-projects.vercel.app'
 ];
 
-// Add any Vercel preview URLs (they have dynamic names)
-if (process.env.NODE_ENV !== 'production') {
-  allowedOrigins.push(/https:\/\/.*\.vercel\.app$/);
-}
-
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, postman, etc.)
     if (!origin) return callback(null, true);
     
     // Check if origin is in allowed list
-    if (allowedOrigins.some(allowed => 
-      typeof allowed === 'string' ? allowed === origin : allowed.test(origin)
-    )) {
+    if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
     
-    // Allow all vercel.app domains for development
+    // Allow all vercel.app domains
     if (origin.includes('.vercel.app')) {
       return callback(null, true);
     }
