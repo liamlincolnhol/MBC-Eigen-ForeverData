@@ -66,16 +66,24 @@ EIGENDA_PROXY_MEMSTORE_ENABLED=false
 | `EIGENDA_PROXY_EIGENDA_V2_MAX_BLOB_LENGTH` | Maximum blob size | `1MiB` |
 | `EIGENDA_PROXY_LOG_LEVEL` | Logging level | `info` |
 
-### Container Management
+## Running EigenDA Proxy with Docker
+
+### Build the Docker Image
 ```bash
-# Start the container
-docker start eigenda-proxy
+docker build -t eigenda-proxy .
+```
 
-# Stop the container
-docker stop eigenda-proxy
+### Run the Docker Container
+```bash
+docker run -d \
+  --name eigenda-proxy \
+  --env-file .env \
+  -p 3100:3100 \
+  eigenda-proxy
+```
 
-# Restart the container
-docker restart eigenda-proxy
-
-# Remove the container
-docker stop eigenda-proxy && docker rm eigenda-proxy
+### Verify the Container is Running
+```bash
+docker ps
+docker logs eigenda-proxy
+```
