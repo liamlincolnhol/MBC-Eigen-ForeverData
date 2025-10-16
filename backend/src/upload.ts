@@ -80,7 +80,7 @@ export async function handleUpload(req: express.Request, res: express.Response) 
       fileSize: req.file.size,
       fileHash: fileHash,
       uploadDate: new Date().toISOString(),
-      permanentLink: `https://linebred-electrodialitically-leena.ngrok-free.dev/f/${fileId}`,
+      permanentLink: `https://foreverdata.live/f/${fileId}`,
       blobId: `0x${certificate}`,
       expiryDate: expiry,
       daysRemaining: getRemainingDays(expiry),
