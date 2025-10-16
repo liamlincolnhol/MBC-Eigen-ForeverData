@@ -27,6 +27,7 @@ import { getExpiringFiles, refreshFileInfo, initializeDb } from "../../backend/s
 import fetch from "node-fetch";
 import crypto from "crypto";
 import { eigenDAConfig } from "../../backend/src/config.js";
+import cron from "node-cron";
 
 // Step 2: Main refresh function (to be called periodically)
 async function refreshFiles() {
@@ -68,7 +69,7 @@ async function refreshFiles() {
             if (hash !== file.hash) {
                 throw new Error(`Hash mismatch for file ${file.fileId}. Expected: ${file.hash}, Got: ${hash}`);
             }
-            console.log('Hash verified ✓');
+            console.log('Hash verified! ✓');
 
             // 2c. Re-upload blob to EigenDA
             console.log(`Re-uploading to EigenDA (${eigenDAConfig.mode})...`);
@@ -102,18 +103,38 @@ async function refreshFiles() {
             // 2d. Update database with new blobId and expiry
             await refreshFileInfo(file.fileId, newBlobId);
 
-            console.log(`✅ Refreshed file ${file.fileId} successfully`);
+            console.log(`Refreshed file ${file.fileId} successfully`);
         } catch (err: any) {
             if (err.name === 'AbortError') {
-                console.error(`❌ Failed to refresh file ${file.fileId}: Request timeout`);
+                console.error(`Failed to refresh file ${file.fileId}: Request timeout`);
             } else {
-                console.error(`❌ Failed to refresh file ${file.fileId}:`, err.message || err);
+                console.error(`Failed to refresh file ${file.fileId}:`, err.message || err);
             }
         }
     }
 }
 
-// Step 4: Run periodically (e.g., every 6 hours) ? just my suggestion... i'm sure there's other ways to go about this 
-// setInterval(refreshFiles, 6 * 60 * 60 * 1000);
 
-refreshFiles(); // uncomment this line if running as a standalone script
+// using background worker
+// (change first number to adjust number of hours)
+
+// const REFRESH_PERIOD = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
+// console.log('Starting refresh job...');
+// refreshFiles(); // run on startup
+// setInterval(refreshFiles, REFRESH_PERIOD); // run every refresh period
+
+
+
+// using node-cron
+
+// Run at minute 0 past every 4th hour
+console.log('Starting refresh job scheduler...');
+cron.schedule('0 */4 * * *', async () => {
+    console.log(`\nRunning scheduled refresh at ${new Date().toISOString()}`);
+    await refreshFiles();
+    console.log(`Completed refresh at ${new Date().toISOString()}\n`);
+});
+
+// Run immediately on startup
+console.log('Running initial refresh...');
+refreshFiles();
