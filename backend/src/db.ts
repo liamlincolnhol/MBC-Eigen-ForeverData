@@ -1,9 +1,10 @@
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import fs from "fs";
+import type { Database } from "sqlite";
 import path from "path";
 
-let db;
+let db: Database | null = null;
 
 export async function initializeDb() {
   db = await open({
@@ -19,6 +20,7 @@ export async function initializeDb() {
 
 // function to insert new file info
 export async function insertFile(fileId: string, fileName: string, hash: string, certificate: string, expiry: string): Promise<void> {
+  if (!db) throw new Error("Database not initialized");
   const sql = `
     INSERT INTO files (fileId, fileName, hash, blobId, expiry)
     VALUES (?, ?, ?, ?, ?)
@@ -28,19 +30,32 @@ export async function insertFile(fileId: string, fileName: string, hash: string,
 
 // function to retrieve file info using fileId
 export async function getFile(fileId: string): Promise<any | undefined> {
+  if (!db) throw new Error("Database not initialized");
   const sql = `SELECT * FROM files WHERE fileId = ?`;
   // .get() resolves with the row, or undefined if not found
   const row = await db.get(sql, fileId);
   return row;
 }
 
-// function to refresh the expiry date
-export async function refreshExpiryDate(fileId: string): Promise<void> {
+// function to retrieve files where expiry is within the next 24 hours
+export async function getExpiringFiles(): Promise<any[]> {
+  if (!db) throw new Error("Database not initialized");
   const sql = `
-    UPDATE files
-    SET expiryDate = datetime(CURRENT_TIMESTAMP, '+14 days')
-    WHERE fileId = ?
+    SELECT * FROM files 
+    WHERE expiry <= datetime('now', '+24 hours')
+    AND expiry > datetime('now')
   `;
-  await db.run(sql, fileId);
+  const rows = await db.all(sql);
+  return rows || [];
 }
 
+// function to refresh the expiry date and blobId
+export async function refreshFileInfo(fileId: string, newBlobId: string): Promise<void> {
+  if (!db) throw new Error("Database not initialized");
+  const sql = `
+    UPDATE files
+    SET blobId = ?, expiry = datetime(CURRENT_TIMESTAMP, '+14 days')
+    WHERE fileId = ?
+  `;
+  await db.run(sql, [newBlobId, fileId]);
+}

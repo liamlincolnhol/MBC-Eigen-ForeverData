@@ -22,54 +22,119 @@
  * - This script should run automatically every few hours (via cron or a background worker).
  */
 
-// Step 1: Import database connection
-// import { getExpiringFiles, updateFileRecord } from "../backend/src/db";
-// import fetch from "node-fetch";
-// import crypto from "crypto";
-// Step 2: Define how close to expiry we start refreshing (e.g., 24 hours)
+// Step 1: Import database + proxy connection
+import { getExpiringFiles, refreshFileInfo, initializeDb } from "../../backend/src/db.js";
+import fetch from "node-fetch";
+import crypto from "crypto";
+import { eigenDAConfig } from "../../backend/src/config.js";
+import cron from "node-cron";
 
-// Step 3: Main refresh function (to be called periodically)
+// Step 2: Main refresh function (to be called periodically)
 async function refreshFiles() {
-  /**
-   * 1. Get all files expiring soon from the database.
-   *    Example: SELECT * FROM files WHERE expiry < now() + 24h
-   * 
-   */
-  // const expiringFiles = await getExpiringFiles(REFRESH_THRESHOLD_HOURS);
+    await initializeDb();
+    console.log('Checking for expiring files...');
+    const expiringFiles = await getExpiringFiles();
+    console.log(`Found ${expiringFiles.length} file(s) expiring soon`);
+    
+    if (expiringFiles.length === 0) {
+        return;
+    }
 
-  /**
-   * 2. Loop through each file and refresh it
-   */
-  // for (const file of expiringFiles) {
-  //   try {
-  //     // 2a. Download blob bytes from EigenDA Proxy
-  //     const blobResponse = await fetch(`${process.env.PROXY_URL}/getBlob/${file.blobId}`);
-  //     const blobBuffer = await blobResponse.arrayBuffer();
+    for (const file of expiringFiles) {
+        try {
+            console.log(`\nProcessing file: ${file.fileName} (${file.fileId})`);
+            
+            // 2a. Download blob bytes from EigenDA Proxy
+            const cleanCertificate = file.blobId.startsWith('0x') ? file.blobId.slice(2) : file.blobId;
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), eigenDAConfig.timeout);
+            
+            const blobResponse = await fetch(
+                `${eigenDAConfig.proxyUrl}/get/0x${cleanCertificate}`,
+                { signal: controller.signal }
+            );
+            
+            clearTimeout(timeoutId);
+            
+            if (!blobResponse.ok) {
+                throw new Error(`Failed to fetch blob: ${blobResponse.status} ${blobResponse.statusText}`);
+            }
+            
+            const arrayBuf = await blobResponse.arrayBuffer();
+            const blobBuffer = Buffer.from(arrayBuf);
+            
+            // 2b. Recompute hash and verify integrity
+            const hash = crypto.createHash('sha256').update(blobBuffer).digest('hex');
+            if (hash !== file.hash) {
+                throw new Error(`Hash mismatch for file ${file.fileId}. Expected: ${file.hash}, Got: ${hash}`);
+            }
+            console.log('Hash verified! ✓');
 
-  //     // 2b. (Optional like I said, but I suggest it) Recompute hash and verify
-  //     // const hash = crypto.createHash('sha256').update(Buffer.from(blobBuffer)).digest('hex');
-  //     // if (hash !== file.hash) throw new Error(`Hash mismatch for file ${file.fileId}`);
+            // 2c. Re-upload blob to EigenDA
+            console.log(`Re-uploading to EigenDA (${eigenDAConfig.mode})...`);
+            
+            const uploadController = new AbortController();
+            const uploadTimeoutId = setTimeout(() => uploadController.abort(), eigenDAConfig.timeout);
+            
+            const disperseResponse = await fetch(
+                `${eigenDAConfig.proxyUrl}/put`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/octet-stream" },
+                    body: blobBuffer,
+                    signal: uploadController.signal
+                }
+            );
+            
+            clearTimeout(uploadTimeoutId);
 
-  //     // 2c. Re-upload blob to EigenDA
-  //     const disperseResponse = await fetch(`${process.env.PROXY_URL}/disperseBlob`, {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/octet-stream" },
-  //       body: blobBuffer,
-  //     });
-  //     const { blobId: newBlobId, expiry: newExpiry } = await disperseResponse.json();
 
-  //     // 2d. Update database with new blobId and expiry
-  //     await updateFileRecord(file.fileId, newBlobId, newExpiry);
+            if (!disperseResponse.ok) {
+                const errorText = await disperseResponse.text();
+                throw new Error(`Failed to disperse blob: ${disperseResponse.status} - ${errorText}`);
+            }
 
-  //     console.log(`✅ Refreshed file ${file.fileId} successfully`);
-  //   } catch (err) {
-  //     console.error(`❌ Failed to refresh file ${file.fileId}:`, err);
-  //   }
-  // Use emoji for yes/no also pls
-  // }
+            const certificateBuffer = await disperseResponse.arrayBuffer();
+            const newBlobId = Buffer.from(certificateBuffer).toString('hex');
+            
+            console.log(`New Blob ID: 0x${newBlobId.slice(0, 20)}...`);
+
+            // 2d. Update database with new blobId and expiry
+            await refreshFileInfo(file.fileId, newBlobId);
+
+            console.log(`Refreshed file ${file.fileId} successfully`);
+        } catch (err: any) {
+            if (err.name === 'AbortError') {
+                console.error(`Failed to refresh file ${file.fileId}: Request timeout`);
+            } else {
+                console.error(`Failed to refresh file ${file.fileId}:`, err.message || err);
+            }
+        }
+    }
 }
 
-// Step 4: Run periodically (e.g., every 6 hours) ? just my suggestion... i'm sure there's other ways to go about this 
-// setInterval(refreshFiles, 6 * 60 * 60 * 1000);
 
-// refreshFiles(); // uncomment this line if running as a standalone script
+// using background worker
+// (change first number to adjust number of hours)
+
+// const REFRESH_PERIOD = 4 * 60 * 60 * 1000; // 4 hours in milliseconds
+// console.log('Starting refresh job...');
+// refreshFiles(); // run on startup
+// setInterval(refreshFiles, REFRESH_PERIOD); // run every refresh period
+
+
+
+// using node-cron
+
+// Run at minute 0 past every 4th hour
+console.log('Starting refresh job scheduler...');
+cron.schedule('0 */4 * * *', async () => {
+    console.log(`\nRunning scheduled refresh at ${new Date().toISOString()}`);
+    await refreshFiles();
+    console.log(`Completed refresh at ${new Date().toISOString()}\n`);
+});
+
+// Run immediately on startup
+console.log('Running initial refresh...');
+refreshFiles();
