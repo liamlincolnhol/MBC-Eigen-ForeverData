@@ -30,4 +30,4 @@ backend/fileInfo.db
 frontend/tsconfig.tsbuildinfo
 
 # Certificates
-backend/cert.bin
+backend/cert.bin.DS_Store
