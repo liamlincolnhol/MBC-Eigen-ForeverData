@@ -4,8 +4,8 @@ import cors from "cors";
 import { handleUpload } from "./upload.js";
 import { handleFetch } from "./fetch.js";
 import { logEigenDAConfig } from "./config.js";
-import { initializeDb } from "./db.js";
 import { refreshFiles } from "./jobs/refresh.js";
+import { initializeDb, getExpiringFiles } from "./db.js";
 
 const app = express();
 
@@ -54,13 +54,19 @@ app.post("/upload", upload.single("file"), handleUpload);
 app.get("/f/:fileId", handleFetch);
 
 // Manual refresh trigger endpoint
+// Manual refresh trigger endpoint
 app.post("/api/admin/trigger-refresh", async (req, res) => {
   try {
     console.log('🔄 Manual refresh job triggered at', new Date().toISOString());
+    
+    // Get count of expiring files first
+    const expiringFiles = await getExpiringFiles();
     await refreshFiles();
+    
     res.json({ 
       success: true, 
       message: 'Refresh job completed successfully',
+      filesProcessed: expiringFiles.length,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
