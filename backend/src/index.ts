@@ -5,6 +5,7 @@ import { handleUpload } from "./upload.js";
 import { handleFetch } from "./fetch.js";
 import { logEigenDAConfig } from "./config.js";
 import { initializeDb } from "./db.js";
+import { refreshFiles } from "../refresh-job/src/refresh.js";
 
 const app = express();
 
@@ -51,6 +52,25 @@ app.post("/upload", upload.single("file"), handleUpload);
 // Fetch endpoint
 // Fetches file by fileId (serves latest blob from EigenDA)
 app.get("/f/:fileId", handleFetch);
+
+// Manual refresh trigger endpoint
+app.post("/api/admin/trigger-refresh", async (req, res) => {
+  try {
+    console.log('🔄 Manual refresh job triggered at', new Date().toISOString());
+    await refreshFiles();
+    res.json({ 
+      success: true, 
+      message: 'Refresh job completed successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Refresh job error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
 
 // Health check / status endpoint (optional)??
 app.get("/status", (_req, res) => {

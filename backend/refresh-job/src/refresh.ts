@@ -30,7 +30,7 @@ import { eigenDAConfig } from "../../backend/src/config.js";
 import cron from "node-cron";
 
 // Step 2: Main refresh function (to be called periodically)
-async function refreshFiles() {
+export async function refreshFiles() {
     await initializeDb();
     console.log('Checking for expiring files...');
     const expiringFiles = await getExpiringFiles();
