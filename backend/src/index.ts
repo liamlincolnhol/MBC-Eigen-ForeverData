@@ -5,7 +5,7 @@ import { handleUpload } from "./upload.js";
 import { handleFetch } from "./fetch.js";
 import { logEigenDAConfig } from "./config.js";
 import { initializeDb } from "./db.js";
-import { refreshFiles } from "../refresh-job/src/refresh.js";
+import { refreshFiles } from "./jobs/refresh.js";
 
 const app = express();
 
