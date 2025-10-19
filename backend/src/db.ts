@@ -59,3 +59,11 @@ export async function refreshFileInfo(fileId: string, newBlobId: string): Promis
   `;
   await db.run(sql, [newBlobId, fileId]);
 }
+
+// function to get file metadata
+export async function getFileMetadata(fileId: string): Promise<any> {
+  if (!db) throw new Error("Database not initialized");
+  const sql = `SELECT * FROM files WHERE fileId = ?`;
+  const file = await db.get(sql, fileId);
+  return file;
+}

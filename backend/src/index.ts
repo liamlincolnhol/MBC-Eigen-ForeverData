@@ -5,7 +5,7 @@ import { handleUpload } from "./upload.js";
 import { handleFetch } from "./fetch.js";
 import { logEigenDAConfig } from "./config.js";
 import { refreshFiles } from "./jobs/refresh.js";
-import { initializeDb, getExpiringFiles } from "./db.js";
+import { initializeDb, getExpiringFiles, getFileMetadata } from "./db.js";
 
 const app = express();
 
@@ -53,7 +53,23 @@ app.post("/upload", upload.single("file"), handleUpload);
 // Fetches file by fileId (serves latest blob from EigenDA)
 app.get("/f/:fileId", handleFetch);
 
-// Manual refresh trigger endpoint
+// Get file metadata endpoint
+// Get file metadata endpoint
+app.get("/api/metadata/:fileId", async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const file = await getFileMetadata(fileId);
+    
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    res.json(file);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Manual refresh trigger endpoint
 app.post("/api/admin/trigger-refresh", async (req, res) => {
   try {
