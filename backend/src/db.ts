@@ -42,7 +42,7 @@ export async function getExpiringFiles(): Promise<any[]> {
   if (!db) throw new Error("Database not initialized");
   const sql = `
     SELECT * FROM files 
-    WHERE expiry <= datetime('now', '+15 days')
+    WHERE expiry <= datetime('now', '+24 hours')
     AND expiry > datetime('now')
   `;
   const rows = await db.all(sql);
