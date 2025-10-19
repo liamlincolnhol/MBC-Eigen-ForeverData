@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { CheckCircle, Upload } from 'lucide-react';
+import { CheckCircle, Upload, BarChart3 } from 'lucide-react';
 import UploadForm from '../components/UploadForm';
+import Dashboard from '../components/Dashboard';
 import { UploadResponse } from '../lib/types';
 
 export default function HomePage() {
   const [uploadResult, setUploadResult] = useState<{response: UploadResponse, file: File} | null>(null);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
 
   const handleUploadSuccess = (response: UploadResponse, file: File) => {
     setUploadResult({response, file});
@@ -17,6 +19,7 @@ export default function HomePage() {
   if (uploadResult) {
     // After upload success state
     return (
+      <>
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-4xl mx-auto space-y-8">
           {/* Success Header */}
@@ -77,11 +80,28 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Dashboard Trigger Button - Fixed at bottom right */}
+      <button
+        onClick={() => setIsDashboardOpen(true)}
+        className="fixed bottom-6 right-6 z-30 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full shadow-lg transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+      >
+        <BarChart3 className="w-5 h-5" />
+        <span className="font-medium">View Files</span>
+      </button>
+
+      {/* Dashboard Component */}
+      <Dashboard 
+        isOpen={isDashboardOpen} 
+        onClose={() => setIsDashboardOpen(false)} 
+      />
+      </>
     );
   }
 
   // Initial upload state
   return (
+    <>
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-4xl mx-auto space-y-12">
         {/* Header */}
@@ -115,5 +135,21 @@ export default function HomePage() {
         </div>
       </div>
     </div>
+
+    {/* Dashboard Trigger Button - Fixed at bottom right */}
+    <button
+      onClick={() => setIsDashboardOpen(true)}
+      className="fixed bottom-6 right-6 z-30 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full shadow-lg transition-all duration-200 flex items-center space-x-2 hover:scale-105"
+    >
+      <BarChart3 className="w-5 h-5" />
+      <span className="font-medium">View Files</span>
+    </button>
+
+    {/* Dashboard Component */}
+    <Dashboard 
+      isOpen={isDashboardOpen} 
+      onClose={() => setIsDashboardOpen(false)} 
+    />
+  </>
   );
 }

@@ -5,7 +5,7 @@ import { handleUpload } from "./upload.js";
 import { handleFetch } from "./fetch.js";
 import { logEigenDAConfig } from "./config.js";
 import { refreshFiles } from "./jobs/refresh.js";
-import { initializeDb, getExpiringFiles, getFileMetadata } from "./db.js";
+import { initializeDb, getExpiringFiles, getFileMetadata, getAllFiles } from "./db.js";
 
 const app = express();
 
@@ -91,6 +91,18 @@ app.post("/api/admin/trigger-refresh", async (req, res) => {
       success: false, 
       error: error.message 
     });
+  }
+});
+
+// Dashboard API endpoint
+// Returns all files with status information for dashboard
+app.get("/api/files", async (_req, res) => {
+  try {
+    const files = await getAllFiles();
+    res.json(files);
+  } catch (error) {
+    console.error("Error fetching files:", error);
+    res.status(500).json({ error: "Failed to fetch files" });
   }
 });
 

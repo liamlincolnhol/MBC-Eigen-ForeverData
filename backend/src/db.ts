@@ -67,3 +67,21 @@ export async function getFileMetadata(fileId: string): Promise<any> {
   const file = await db.get(sql, fileId);
   return file;
 }
+
+// function to get all files with status information
+export async function getAllFiles(): Promise<any[]> {
+  if (!db) throw new Error("Database not initialized");
+  const sql = `
+    SELECT *,
+      CASE 
+        WHEN expiry <= datetime('now') THEN 'expired'
+        WHEN expiry <= datetime('now', '+24 hours') THEN 'expiring_soon'
+        ELSE 'active'
+      END as status,
+      ROUND((julianday(expiry) - julianday('now'))) as days_remaining
+    FROM files 
+    ORDER BY createdAt DESC
+  `;
+  const rows = await db.all(sql);
+  return rows || [];
+}
