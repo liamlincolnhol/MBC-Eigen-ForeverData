@@ -93,11 +93,11 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
       )}
       
       {/* Dashboard Peninsula - Slides in from right */}
-      <div className={`fixed top-0 right-0 w-1/2 h-full bg-white rounded-l-2xl shadow-2xl z-50 transition-all duration-500 ease-out ${
+      <div className={`fixed top-0 right-0 w-1/2 h-full bg-white rounded-l-2xl shadow-2xl z-50 transition-all duration-500 ease-out flex flex-col ${
         isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
           <h2 className="text-xl font-semibold text-gray-900 flex items-center">
             <FileText className="w-5 h-5 mr-2" />
             File Dashboard
@@ -111,7 +111,7 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
