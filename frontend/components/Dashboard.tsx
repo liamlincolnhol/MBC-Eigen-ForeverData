@@ -31,7 +31,10 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
   const fetchFiles = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3001/api/files');
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://api.foreverdata.live' 
+        : 'http://localhost:3001';
+      const response = await fetch(`${baseUrl}/api/files`);
       if (!response.ok) throw new Error('Failed to fetch files');
       const data = await response.json();
       setFiles(data);
