@@ -23,15 +23,72 @@
  */
 
 // Step 1: Import database + proxy connection
-import { getExpiringFiles, refreshFileInfo, initializeDb } from "../db.js";
+import { getExpiringFiles, refreshFileInfo, initializeDb, updateContractBalance, updatePaymentStatus, recordPayment, getFilesForBalanceCheck } from "../db.js";
 import fetch from "node-fetch";
 import crypto from "crypto";
 import { eigenDAConfig } from "../config.js";
 import cron from "node-cron";
+import { getContractInstance, getSignedContract } from "../utils/contract.js";
+import { calculateRefreshCost, checkSufficientBalance, formatEth } from "../utils/payments.js";
 
-// Step 2: Main refresh function (to be called periodically)
+// Step 2: Function to check and update contract balances
+async function updateContractBalances() {
+    console.log('Updating contract balances...');
+    const filesToCheck = await getFilesForBalanceCheck();
+    console.log(`Found ${filesToCheck.length} file(s) needing balance updates`);
+    
+    if (filesToCheck.length === 0) {
+        return;
+    }
+
+    const contract = await getContractInstance();
+    
+    for (const file of filesToCheck) {
+        try {
+            console.log(`Checking balance for file: ${file.fileId}`);
+            const balance = await contract.getFileBalance(file.fileId);
+            await updateContractBalance(file.fileId, balance.toString());
+            
+            console.log(`Updated balance for ${file.fileId}: ${formatEth(balance)} ETH`);
+        } catch (err: any) {
+            console.error(`Failed to check balance for file ${file.fileId}:`, err.message);
+        }
+    }
+}
+
+// Step 3: Function to deduct refresh cost from contract
+async function deductRefreshCost(fileId: string, refreshCost: bigint): Promise<boolean> {
+    try {
+        const signedContract = await getSignedContract();
+        
+        console.log(`Deducting ${formatEth(refreshCost)} ETH for file ${fileId}...`);
+        const tx = await signedContract.deductRefreshCost(fileId, refreshCost);
+        const receipt = await tx.wait();
+        
+        // Record the deduction in our database
+        await recordPayment(
+            receipt.hash,
+            fileId,
+            await signedContract.getAddress(), // Contract owner address
+            refreshCost.toString(),
+            'refresh'
+        );
+        
+        console.log(`✓ Deducted refresh cost. TX: ${receipt.hash}`);
+        return true;
+    } catch (err: any) {
+        console.error(`Failed to deduct refresh cost for file ${fileId}:`, err.message);
+        return false;
+    }
+}
+
+// Step 4: Main refresh function (to be called periodically)
 export async function refreshFiles() {
     await initializeDb();
+    
+    // First, update contract balances for all paid files
+    await updateContractBalances();
+    
     console.log('Checking for expiring files...');
     const expiringFiles = await getExpiringFiles();
     console.log(`Found ${expiringFiles.length} file(s) expiring soon`);
@@ -43,6 +100,33 @@ export async function refreshFiles() {
     for (const file of expiringFiles) {
         try {
             console.log(`\nProcessing file: ${file.fileName} (${file.fileId})`);
+            
+            // Check if this file has crypto payments enabled
+            if (file.paymentStatus === 'paid' || file.payerAddress) {
+                // Calculate refresh cost based on file size
+                const refreshCost = calculateRefreshCost(file.fileSize);
+                console.log(`Refresh cost: ${formatEth(refreshCost)} ETH`);
+                
+                // Check if file has sufficient balance
+                const hasSufficientBalance = await checkSufficientBalance(file.fileId, refreshCost);
+                
+                if (!hasSufficientBalance) {
+                    console.log(`❌ Insufficient balance for file ${file.fileId}. Skipping refresh.`);
+                    await updatePaymentStatus(file.fileId, 'insufficient');
+                    continue;
+                }
+                
+                // Deduct refresh cost from contract
+                const deductionSuccess = await deductRefreshCost(file.fileId, refreshCost);
+                if (!deductionSuccess) {
+                    console.log(`❌ Failed to deduct refresh cost for file ${file.fileId}. Skipping refresh.`);
+                    continue;
+                }
+                
+                console.log(`✓ Crypto payment deducted successfully`);
+            } else {
+                console.log(`File ${file.fileId} has no crypto payment. Proceeding with free refresh.`);
+            }
             
             // 2a. Download blob bytes from EigenDA Proxy
             const cleanCertificate = file.blobId.startsWith('0x') ? file.blobId.slice(2) : file.blobId;

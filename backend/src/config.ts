@@ -1,7 +1,18 @@
+/**
+ * Get an environment variable or throw if it's not set
+ */
+export function getEnvVar(name: string): string {
+    const value = process.env[name];
+    if (!value) {
+        throw new Error(`Environment variable ${name} is not set`);
+    }
+    return value;
+}
+
 interface EigenDAConfig {
-  proxyUrl: string;
-  timeout: number;
-  mode: 'memstore' | 'testnet' | 'mainnet';
+    proxyUrl: string;
+    timeout: number;
+    mode: 'memstore' | 'testnet' | 'mainnet';
 }
 
 export const eigenDAConfig: EigenDAConfig = {

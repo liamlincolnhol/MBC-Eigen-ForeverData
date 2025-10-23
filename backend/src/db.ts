@@ -19,13 +19,65 @@ export async function initializeDb() {
 }
 
 // function to insert new file info
-export async function insertFile(fileId: string, fileName: string, hash: string, certificate: string, expiry: string): Promise<void> {
+export async function insertFile(
+  fileId: string, 
+  fileName: string, 
+  hash: string, 
+  certificate: string, 
+  expiry: string,
+  fileSize?: number,
+  paymentStatus: string = 'pending',
+  payerAddress?: string,
+  paymentAmount?: string
+): Promise<void> {
   if (!db) throw new Error("Database not initialized");
   const sql = `
-    INSERT INTO files (fileId, fileName, hash, blobId, expiry)
+    INSERT INTO files (
+      fileId, fileName, hash, blobId, expiry, fileSize,
+      paymentStatus, payerAddress, paymentAmount
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+  await db.run(sql, [
+    fileId, fileName, hash, certificate, expiry, fileSize || null,
+    paymentStatus, payerAddress || null, paymentAmount || null
+  ]);
+}
+
+// function to update payment status
+export async function updatePaymentStatus(
+  fileId: string,
+  status: string,
+  payerAddress?: string,
+  paymentAmount?: string,
+  txHash?: string
+): Promise<void> {
+  if (!db) throw new Error("Database not initialized");
+  const sql = `
+    UPDATE files 
+    SET paymentStatus = ?,
+        payerAddress = COALESCE(?, payerAddress),
+        paymentAmount = COALESCE(?, paymentAmount),
+        paymentTxHash = COALESCE(?, paymentTxHash)
+    WHERE fileId = ?
+  `;
+  await db.run(sql, [status, payerAddress, paymentAmount, txHash, fileId]);
+}
+
+// function to record payment transaction
+export async function recordPayment(
+  txHash: string,
+  fileId: string,
+  payerAddress: string,
+  amount: string,
+  type: 'deposit' | 'refresh' | 'withdrawal'
+): Promise<void> {
+  if (!db) throw new Error("Database not initialized");
+  const sql = `
+    INSERT INTO payments (txHash, fileId, payerAddress, amount, type)
     VALUES (?, ?, ?, ?, ?)
   `;
-  await db.run(sql, [fileId, fileName, hash, certificate, expiry]);
+  await db.run(sql, [txHash, fileId, payerAddress, amount, type]);
 }
 
 // function to retrieve file info using fileId
@@ -81,6 +133,33 @@ export async function getAllFiles(): Promise<any[]> {
       ROUND((julianday(expiry) - julianday('now'))) as days_remaining
     FROM files 
     ORDER BY createdAt DESC
+  `;
+  const rows = await db.all(sql);
+  return rows || [];
+}
+
+// function to update contract balance info
+export async function updateContractBalance(
+  fileId: string,
+  balance: string
+): Promise<void> {
+  if (!db) throw new Error("Database not initialized");
+  const sql = `
+    UPDATE files 
+    SET contractBalance = ?,
+        lastBalanceCheck = datetime('now')
+    WHERE fileId = ?
+  `;
+  await db.run(sql, [balance, fileId]);
+}
+
+// function to get files that need balance checks (haven't been checked in the last hour)
+export async function getFilesForBalanceCheck(): Promise<any[]> {
+  if (!db) throw new Error("Database not initialized");
+  const sql = `
+    SELECT * FROM files 
+    WHERE paymentStatus IN ('paid', 'pending')
+    AND (lastBalanceCheck IS NULL OR lastBalanceCheck <= datetime('now', '-1 hour'))
   `;
   const rows = await db.all(sql);
   return rows || [];
