@@ -1,13 +1,11 @@
 import express from "express";
 import multer from "multer";
 import crypto from "crypto";
-import { v4 } from "uuid";
 import fetch from "node-fetch";
 import { insertFile } from "./db.js";
 import { eigenDAConfig } from "./config.js";
 import { calculateExpiry, getRemainingDays } from "./utils.js";
 import { calculateRequiredPayment, verifyPayment } from "./utils/payments.js";
-import { PaymentDetails } from "./types/payments.js";
 
 // using memory storage
 export const upload = multer({ storage: multer.memoryStorage() });
@@ -17,18 +15,26 @@ export async function handleUpload(req: express.Request, res: express.Response) 
 
   console.log("\nProcessing:", req.file.originalname, `(${req.file.size} bytes)`);
 
-  const fileId = v4();
+  // Get fileId from request body (should be provided by frontend after payment)
+  const fileId = req.body.fileId;
+  
+  if (!fileId) {
+    return res.status(400).json({ 
+      error: "fileId is required. Please generate a fileId and complete payment first.",
+      hint: "Use /api/generate-fileid endpoint first"
+    });
+  }
 
   // Calculate required payment
   const payment = calculateRequiredPayment(req.file.size);
   
-  // Check if payment exists and is sufficient
+  // Check if payment exists and is sufficient for this specific fileId
   const isValid = await verifyPayment(fileId, payment.requiredAmount);
   
   if (!isValid) {
     return res.status(402).json({
-      error: "Payment required",
-      fileId, // Return fileId so frontend can initiate payment
+      error: "Payment required or insufficient",
+      fileId,
       details: {
         requiredAmount: payment.requiredAmount.toString(),
         estimatedDuration: payment.estimatedDuration,

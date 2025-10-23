@@ -12,11 +12,13 @@ const api = axios.create({
 // Upload file with progress tracking
 export async function uploadFile(
   file: File,
+  fileId: string,
   onProgress?: (progress: number) => void
 ): Promise<UploadResponse> {
   try {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('fileId', fileId);
 
     const response = await api.post<UploadResponse>('/upload', formData, {
       headers: {
@@ -33,6 +35,29 @@ export async function uploadFile(
     return response.data;
   } catch (error) {
     throw handleApiError(error, 'Failed to upload file');
+  }
+}
+
+// Generate fileId for payment flow
+export async function generateFileId(fileName: string, fileSize: number): Promise<{
+  fileId: string;
+  payment: {
+    requiredAmount: string;
+    estimatedDuration: number;
+    breakdown: {
+      storageCost: string;
+      gasCost: string;
+    };
+  };
+}> {
+  try {
+    const response = await api.post('/api/generate-fileid', {
+      fileName,
+      fileSize
+    });
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error, 'Failed to generate file ID');
   }
 }
 

@@ -1,10 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { ethers } from "ethers";
 import { AlertCircle, Loader2 } from "lucide-react";
-import { useWallet } from "../hooks/useWallet";
 import {
-  calculatePaymentDetails,
-  PaymentDetails,
   FOREVER_DATA_PAYMENTS_ADDRESS,
   FOREVER_DATA_PAYMENTS_ABI,
 } from "../lib/payment";
@@ -13,6 +10,8 @@ interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   file: File | null;
+  fileId: string | null;
+  paymentData: any;
   onPaymentSuccess: () => void;
 }
 
@@ -20,27 +19,18 @@ export default function PaymentModal({
   isOpen,
   onClose,
   file,
+  fileId,
+  paymentData,
   onPaymentSuccess,
 }: PaymentModalProps) {
-  const { address } = useWallet();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const paymentDetails = useMemo(() => {
-    if (!file) return null;
-    return calculatePaymentDetails(file.size);
-  }, [file]);
-
-  if (!isOpen || !file) return null;
+  if (!isOpen || !file || !fileId || !paymentData) return null;
 
   const handlePayment = async () => {
     if (!window.ethereum) {
       setError("Please install MetaMask to make a payment");
-      return;
-    }
-
-    if (!paymentDetails) {
-      setError("Failed to calculate payment details");
       return;
     }
 
@@ -57,12 +47,8 @@ export default function PaymentModal({
         signer
       );
 
-      const fileId = ethers.keccak256(
-        ethers.toUtf8Bytes(`${file.name}-${file.size}-${Date.now()}`)
-      );
-
       const tx = await contract.depositForFile(fileId, {
-        value: paymentDetails.totalAmount,
+        value: ethers.parseEther(paymentData.requiredAmount),
       });
 
       await tx.wait();
@@ -108,31 +94,19 @@ export default function PaymentModal({
               Required Payment
             </p>
             <p className="text-2xl font-bold text-gray-900">
-              {paymentDetails
-                ? ethers.formatEther(paymentDetails.totalAmount)
-                : "0"}{" "}
-              ETH
+              {ethers.formatEther(paymentData.requiredAmount)} ETH
             </p>
             <p className="text-sm text-gray-600">
-              Estimated storage duration:{" "}
-              {paymentDetails?.estimatedDuration || 365} days
+              Estimated storage duration: {paymentData.estimatedDuration} days
             </p>
           </div>
 
           <div className="text-sm text-gray-600 space-y-1">
             <p>
-              Storage cost:{" "}
-              {paymentDetails
-                ? ethers.formatEther(paymentDetails.breakdown.storageCost)
-                : "0"}{" "}
-              ETH
+              Storage cost: {ethers.formatEther(paymentData.breakdown.storageCost)} ETH
             </p>
             <p>
-              Gas cost:{" "}
-              {paymentDetails
-                ? ethers.formatEther(paymentDetails.breakdown.gasCost)
-                : "0"}{" "}
-              ETH
+              Gas cost: {ethers.formatEther(paymentData.breakdown.gasCost)} ETH
             </p>
           </div>
         </div>

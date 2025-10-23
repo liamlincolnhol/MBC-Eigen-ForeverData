@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, File, AlertCircle, Loader2, Wallet } from 'lucide-react';
-import { uploadFile } from '../lib/api';
+import { uploadFile, generateFileId } from '../lib/api';
 import { UploadResponse, ApiError } from '../lib/types';
 import { useWallet } from '../hooks/useWallet';
 import { default as WalletConnectComponent } from '../components/WalletConnect';
@@ -17,6 +17,8 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileId, setFileId] = useState<string | null>(null);
+  const [paymentData, setPaymentData] = useState<any>(null);
   const { isConnected } = useWallet();
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -24,18 +26,29 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
     
     const file = acceptedFiles[0];
     setSelectedFile(file);
+    setError(null);
     
     if (!isConnected) {
       setError('Please connect your wallet first');
       return;
     }
     
-    // Show payment modal
-    setShowPaymentModal(true);
+    try {
+      // Generate fileId and payment details
+      const fileIdData = await generateFileId(file.name, file.size);
+      setFileId(fileIdData.fileId);
+      setPaymentData(fileIdData.payment);
+      
+      // Show payment modal
+      setShowPaymentModal(true);
+    } catch (err) {
+      console.error('Failed to generate fileId:', err);
+      setError('Failed to prepare file for upload. Please try again.');
+    }
   }, [isConnected]);
 
   const handlePaymentSuccess = async () => {
-    if (!selectedFile) return;
+    if (!selectedFile || !fileId) return;
     
     setShowPaymentModal(false);
     setIsUploading(true);
@@ -43,12 +56,14 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
     setError(null);
 
     try {
-      const response = await uploadFile(selectedFile, (progressValue) => {
+      const response = await uploadFile(selectedFile, fileId, (progressValue) => {
         setProgress(progressValue);
       });
       
       onUploadSuccess(response, selectedFile);
       setSelectedFile(null);
+      setFileId(null);
+      setPaymentData(null);
       setIsUploading(false);
       setProgress(0);
     } catch (err) {
@@ -153,6 +168,8 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
           onClose={() => setShowPaymentModal(false)}
           onPaymentSuccess={handlePaymentSuccess}
           file={selectedFile}
+          fileId={fileId}
+          paymentData={paymentData}
         />
       )}
     </div>

@@ -94,6 +94,38 @@ app.post("/api/admin/trigger-refresh", async (req, res) => {
   }
 });
 
+// Generate fileId endpoint for payment flow
+app.post("/api/generate-fileid", async (req, res) => {
+  try {
+    const { fileName, fileSize } = req.body;
+    
+    if (!fileName || !fileSize) {
+      return res.status(400).json({ error: "fileName and fileSize are required" });
+    }
+    
+    // Generate consistent fileId using filename and size
+    const fileId = v4();
+    
+    // Calculate payment details
+    const payment = calculateRequiredPayment(fileSize);
+    
+    res.json({
+      fileId,
+      payment: {
+        requiredAmount: payment.requiredAmount.toString(),
+        estimatedDuration: payment.estimatedDuration,
+        breakdown: {
+          storageCost: payment.breakdown.storageCost.toString(),
+          gasCost: payment.breakdown.gasCost.toString()
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error generating fileId:", error);
+    res.status(500).json({ error: "Failed to generate fileId" });
+  }
+});
+
 // Dashboard API endpoint
 // Returns all files with status information for dashboard
 app.get("/api/files", async (_req, res) => {
