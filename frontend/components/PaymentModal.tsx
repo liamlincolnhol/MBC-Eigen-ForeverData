@@ -48,7 +48,7 @@ export default function PaymentModal({
       );
 
       const tx = await contract.depositForFile(fileId, {
-        value: ethers.parseEther(paymentData.requiredAmount),
+        value: BigInt(paymentData.requiredAmount),
       });
 
       await tx.wait();
