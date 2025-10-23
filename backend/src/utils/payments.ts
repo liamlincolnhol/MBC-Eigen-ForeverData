@@ -1,10 +1,6 @@
 import { ethers } from 'ethers';
 import { getContractInstance } from './contract.js';
 
-// EigenDA cost basis: 0.015 ETH per GB
-const EIGEN_COST_PER_GB = ethers.parseEther('0.015');
-const GB = 1024 * 1024 * 1024; // 1 GB in bytes
-
 // Base gas cost for EigenDA operations (rough estimate)
 const BASE_GAS_COST = ethers.parseEther('0.0001');
 
@@ -23,10 +19,10 @@ export interface PaymentDetails {
  * @param targetDuration Target duration in days (optional, defaults to 30)
  */
 export function calculateRequiredPayment(fileSize: number, targetDuration: number = 30): PaymentDetails {
-    // Calculate storage cost based on file size
-    const sizeInGB = fileSize / GB;
-    const dailyStorageCost = (EIGEN_COST_PER_GB * BigInt(Math.ceil(sizeInGB))) / BigInt(14); // 14 days is base period
-    const storageCost = dailyStorageCost * BigInt(targetDuration);
+    // Much simpler pricing: 0.001 ETH per MB for 30 days
+    const sizeInMB = fileSize / (1024 * 1024);
+    const costPerMB = ethers.parseEther('0.001'); // 0.001 ETH per MB
+    const storageCost = costPerMB * BigInt(Math.ceil(sizeInMB));
     
     // Add base gas cost for operations
     const totalGasCost = BASE_GAS_COST;
