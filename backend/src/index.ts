@@ -1,11 +1,13 @@
 import express from "express";
 import multer from "multer";
 import cors from "cors";
+import { v4 } from "uuid";
 import { handleUpload } from "./upload.js";
 import { handleFetch } from "./fetch.js";
 import { logEigenDAConfig } from "./config.js";
 import { refreshFiles } from "./jobs/refresh.js";
 import { initializeDb, getExpiringFiles, getFileMetadata, getAllFiles } from "./db.js";
+import { calculateRequiredPayment } from "./utils/payments.js";
 
 const app = express();
 
