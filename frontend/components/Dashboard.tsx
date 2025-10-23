@@ -143,7 +143,7 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
       const balance = BigInt(contractBalance);
       const refreshCost = BigInt(calculateRefreshCost(fileSize));
       
-      if (refreshCost === 0n) return 0;
+      if (refreshCost === BigInt(0)) return 0;
       
       return Number(balance / refreshCost);
     } catch {
