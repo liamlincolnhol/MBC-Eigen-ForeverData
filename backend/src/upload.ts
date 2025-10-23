@@ -6,6 +6,8 @@ import fetch from "node-fetch";
 import { insertFile } from "./db.js";
 import { eigenDAConfig } from "./config.js";
 import { calculateExpiry, getRemainingDays } from "./utils.js";
+import { calculateRequiredPayment, verifyPayment } from "./utils/payments.js";
+import { PaymentDetails } from "./types/payments.js";
 
 // using memory storage
 export const upload = multer({ storage: multer.memoryStorage() });
@@ -15,13 +17,34 @@ export async function handleUpload(req: express.Request, res: express.Response) 
 
   console.log("\nProcessing:", req.file.originalname, `(${req.file.size} bytes)`);
 
+  const fileId = v4();
+
+  // Calculate required payment
+  const payment = calculateRequiredPayment(req.file.size);
+  
+  // Check if payment exists and is sufficient
+  const isValid = await verifyPayment(fileId, payment.requiredAmount);
+  
+  if (!isValid) {
+    return res.status(402).json({
+      error: "Payment required",
+      fileId, // Return fileId so frontend can initiate payment
+      details: {
+        requiredAmount: payment.requiredAmount.toString(),
+        estimatedDuration: payment.estimatedDuration,
+        breakdown: {
+          storageCost: payment.breakdown.storageCost.toString(),
+          gasCost: payment.breakdown.gasCost.toString()
+        }
+      }
+    });
+  }
+
   // Calculate hash
   const hash = crypto.createHash("sha256");
   hash.update(req.file.buffer);
   const fileHash = hash.digest("hex");
   console.log("Hash:", fileHash);
-
-  const fileId = v4();
 
   try {    
     // Upload file to EigenDA

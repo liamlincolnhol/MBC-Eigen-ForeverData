@@ -1,8 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, File, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, File, AlertCircle, Loader2, Wallet } from 'lucide-react';
 import { uploadFile } from '../lib/api';
 import { UploadResponse, ApiError } from '../lib/types';
+import { useWallet } from '../hooks/useWallet';
+import { default as WalletConnectComponent } from '../components/WalletConnect';
+import { default as PaymentModalComponent } from '../components/PaymentModal';
 
 interface UploadFormProps {
   onUploadSuccess: (response: UploadResponse, file: File) => void;
@@ -12,21 +15,40 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const { isConnected } = useWallet();
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
     
     const file = acceptedFiles[0];
+    setSelectedFile(file);
+    
+    if (!isConnected) {
+      setError('Please connect your wallet first');
+      return;
+    }
+    
+    // Show payment modal
+    setShowPaymentModal(true);
+  }, [isConnected]);
+
+  const handlePaymentSuccess = async () => {
+    if (!selectedFile) return;
+    
+    setShowPaymentModal(false);
     setIsUploading(true);
     setProgress(0);
     setError(null);
 
     try {
-      const response = await uploadFile(file, (progressValue) => {
+      const response = await uploadFile(selectedFile, (progressValue) => {
         setProgress(progressValue);
       });
       
-      onUploadSuccess(response, file);
+      onUploadSuccess(response, selectedFile);
+      setSelectedFile(null);
       setIsUploading(false);
       setProgress(0);
     } catch (err) {
@@ -35,7 +57,7 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
       setIsUploading(false);
       setProgress(0);
     }
-  }, [onUploadSuccess]);
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -45,6 +67,11 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
 
   return (
     <div className="w-full max-w-2xl mx-auto">
+      {/* Wallet Connection */}
+      <div className="mb-6">
+        <WalletConnectComponent onConnect={() => {}} />
+      </div>
+
       {/* Upload Area */}
       <div
         {...getRootProps()}
@@ -119,6 +146,15 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
         </div>
       )}
 
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <PaymentModalComponent
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          onPaymentSuccess={handlePaymentSuccess}
+          file={selectedFile}
+        />
+      )}
     </div>
   );
 }
