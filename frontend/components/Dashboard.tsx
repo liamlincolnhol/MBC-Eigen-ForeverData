@@ -169,7 +169,6 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
   };
 
   const copyLink = (fileId: string) => {
-    // Use production URL for production, localhost for development
     const baseUrl = process.env.NODE_ENV === 'production' 
       ? 'https://api.foreverdata.live' 
       : 'http://localhost:3001';
@@ -398,14 +397,25 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
                       </div>
                     </div>
 
-                    {/* Copy Link Button */}
-                    <button
-                      onClick={() => copyLink(file.fileId)}
-                      className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      <span>Copy Link</span>
-                    </button>
+                    {/* Action Buttons */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => copyLink(file.fileId)}
+                        className="flex items-center justify-center space-x-2 px-3 py-2 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Copy Link</span>
+                      </button>
+                      <a
+                        href={`https://blobs-sepolia.eigenda.xyz/blobs/${file.blobId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center space-x-2 px-3 py-2 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>View Blob on Blob Explorer</span>
+                      </a>
+                    </div>
                   </div>
                 ))}
               </div>
