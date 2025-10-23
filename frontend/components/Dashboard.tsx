@@ -39,9 +39,7 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
   const fetchFiles = async () => {
     try {
       setLoading(true);
-      const baseUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://api.foreverdata.live' 
-        : 'http://localhost:3001';
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.foreverdata.live';
       const response = await fetch(`${baseUrl}/api/files`);
       if (!response.ok) throw new Error('Failed to fetch files');
       const data = await response.json();
@@ -169,10 +167,8 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
   };
 
   const copyLink = (fileId: string) => {
-    // Use production URL for production, localhost for development
-    const baseUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://api.foreverdata.live' 
-      : 'http://localhost:3001';
+    // Use configured API URL or default to production
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.foreverdata.live';
     const link = `${baseUrl}/f/${fileId}`;
     navigator.clipboard.writeText(link);
   };
