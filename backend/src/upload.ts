@@ -94,13 +94,17 @@ export async function handleUpload(req: express.Request, res: express.Response) 
     // Get the certificate (blob ID) from response
     const certificateBuffer = await response.arrayBuffer();
     const certificate = Buffer.from(certificateBuffer).toString('hex');
+    
+    // Extract blob key for explorer (keccak256 hash of certificate)
+    const blobKey = crypto.createHash('sha256').update(Buffer.from(certificateBuffer)).digest('hex');
 
     console.log(`Upload successful!`);
-    console.log(`Blob ID: 0x${certificate.slice(0, 20)}...`);
+    console.log(`Certificate: 0x${certificate.slice(0, 20)}...`);
+    console.log(`Blob Key: 0x${blobKey}`);
 
     // Store in database
     const expiry = calculateExpiry();
-    await insertFile(fileId, req.file.originalname, fileHash, certificate, expiry);
+    await insertFile(fileId, req.file.originalname, fileHash, certificate, expiry, req.file.size, 'pending', undefined, undefined, blobKey);
 
     // Respond with metadata
     res.json({

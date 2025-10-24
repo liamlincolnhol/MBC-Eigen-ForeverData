@@ -28,18 +28,19 @@ export async function insertFile(
   fileSize?: number,
   paymentStatus: string = 'pending',
   payerAddress?: string,
-  paymentAmount?: string
+  paymentAmount?: string,
+  blobKey?: string
 ): Promise<void> {
   if (!db) throw new Error("Database not initialized");
   const sql = `
     INSERT INTO files (
-      fileId, fileName, hash, blobId, expiry, fileSize,
+      fileId, fileName, hash, blobId, blobKey, expiry, fileSize,
       paymentStatus, payerAddress, paymentAmount
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
   await db.run(sql, [
-    fileId, fileName, hash, certificate, expiry, fileSize || null,
+    fileId, fileName, hash, certificate, blobKey || null, expiry, fileSize || null,
     paymentStatus, payerAddress || null, paymentAmount || null
   ]);
 }

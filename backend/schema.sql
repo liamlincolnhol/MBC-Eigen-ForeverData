@@ -2,7 +2,8 @@ CREATE TABLE IF NOT EXISTS files (
     fileId TEXT PRIMARY KEY,
     fileName TEXT NOT NULL,
     hash TEXT NOT NULL,
-    blobId TEXT NOT NULL,
+    blobId TEXT NOT NULL,         -- Full certificate for retrieval
+    blobKey TEXT,                 -- Extracted blob key for explorer
     expiry TEXT NOT NULL,
     createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
     fileSize INTEGER,    -- File size in bytes for cost calculation

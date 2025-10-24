@@ -404,7 +404,7 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
                         <span>Copy Link</span>
                       </button>
                       <a
-                        href={`https://blobs-sepolia.eigenda.xyz/blobs/${file.blobId}`}
+                        href={`https://blobs-sepolia.eigenda.xyz/blobs/${file.blobKey || file.blobId}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center justify-center space-x-2 px-3 py-2 text-xs bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors"
