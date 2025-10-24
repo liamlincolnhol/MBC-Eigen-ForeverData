@@ -26,3 +26,6 @@ CREATE TABLE IF NOT EXISTS payments (
     type TEXT CHECK(type IN ('deposit', 'refresh', 'withdrawal')) NOT NULL,
     FOREIGN KEY (fileId) REFERENCES files(fileId)
 );
+
+-- Add blobKey column to existing tables (migration for existing databases)
+ALTER TABLE files ADD COLUMN blobKey TEXT;
