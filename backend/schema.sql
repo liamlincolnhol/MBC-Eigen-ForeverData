@@ -28,4 +28,5 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 
 -- Add blobKey column to existing tables (migration for existing databases)
-ALTER TABLE files ADD COLUMN blobKey TEXT;
+-- SQLite doesn't support ADD COLUMN IF NOT EXISTS, so we need to handle this carefully
+-- This will fail silently if column already exists, which is what we want

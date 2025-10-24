@@ -7,6 +7,7 @@ interface FileData {
   fileName: string;
   hash: string;
   blobId: string;
+  blobKey?: string;  // New field for blob explorer
   expiry: string;
   createdAt: string;
   status: 'active' | 'expiring_soon' | 'expired';

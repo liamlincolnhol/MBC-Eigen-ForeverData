@@ -12,10 +12,25 @@ export async function initializeDb() {
     driver: sqlite3.Database
   });
   
-  // Load and execute schema.sql
+  // Load and execute schema.sql (without the ALTER TABLE)
   const schemaPath = path.join(process.cwd(), 'schema.sql');
   const schema = fs.readFileSync(schemaPath, 'utf8');
-  await db.exec(schema);
+  
+  // Remove the ALTER TABLE statement to handle it separately
+  const schemaWithoutAlter = schema.replace(/-- Add blobKey column[\s\S]*$/, '');
+  await db.exec(schemaWithoutAlter);
+  
+  // Handle blobKey column migration safely
+  try {
+    await db.exec('ALTER TABLE files ADD COLUMN blobKey TEXT');
+    console.log('Added blobKey column to files table');
+  } catch (err: any) {
+    if (err.code === 'SQLITE_ERROR' && err.message.includes('duplicate column')) {
+      console.log('blobKey column already exists, skipping migration');
+    } else {
+      throw err; // Re-throw other errors
+    }
+  }
 }
 
 // function to insert new file info
