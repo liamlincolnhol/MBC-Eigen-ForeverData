@@ -16,9 +16,28 @@ export function useWallet(): UseWalletReturn {
     const [error, setError] = useState<string | null>(null);
     const [isClient, setIsClient] = useState(false);
 
-    // Handle client-side mounting
+    // Handle client-side mounting and check existing connection
     useEffect(() => {
         setIsClient(true);
+        
+        // Check if wallet is already connected
+        const checkConnection = async () => {
+            if (window.ethereum) {
+                try {
+                    const accounts = await window.ethereum.request({
+                        method: 'eth_accounts'
+                    });
+                    
+                    if (accounts.length > 0) {
+                        setAddress(accounts[0]);
+                    }
+                } catch (err) {
+                    console.error('Error checking existing connection:', err);
+                }
+            }
+        };
+        
+        checkConnection();
     }, []);
 
     // Connect wallet
