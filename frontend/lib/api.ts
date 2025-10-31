@@ -49,6 +49,11 @@ export async function generateFileId(fileName: string, fileSize: number): Promis
       gasCost: string;
     };
   };
+  chunkingInfo?: {
+    willBeChunked: boolean;
+    totalChunks: number;
+    chunkSize: number;
+  };
 }> {
   try {
     const response = await api.post('/api/generate-fileid', {
@@ -58,6 +63,57 @@ export async function generateFileId(fileName: string, fileSize: number): Promis
     return response.data;
   } catch (error) {
     throw handleApiError(error, 'Failed to generate file ID');
+  }
+}
+
+// Upload a single chunk
+export async function uploadChunk(
+  chunk: Blob,
+  fileId: string,
+  fileName: string,
+  chunkIndex: number,
+  totalChunks: number,
+  chunkHash: string,
+  fileHash: string,
+  isFirstChunk: boolean,
+  isLastChunk: boolean,
+  onProgress?: (progress: number) => void
+): Promise<{
+  success: boolean;
+  message: string;
+  chunkIndex: number;
+  totalChunks: number;
+  isComplete: boolean;
+  certificate?: string;
+}> {
+  try {
+    const formData = new FormData();
+    formData.append('chunk', chunk);
+    formData.append('fileId', fileId);
+    formData.append('fileName', fileName);
+    formData.append('chunkIndex', chunkIndex.toString());
+    formData.append('totalChunks', totalChunks.toString());
+    formData.append('chunkHash', chunkHash);
+    formData.append('fileHash', fileHash);
+    formData.append('isFirstChunk', isFirstChunk.toString());
+    formData.append('isLastChunk', isLastChunk.toString());
+
+    const response = await api.post('/upload-chunk', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 60000, // 60 second timeout for chunk upload
+      onUploadProgress: (progressEvent: AxiosProgressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    throw handleApiError(error, 'Failed to upload chunk');
   }
 }
 

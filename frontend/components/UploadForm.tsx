@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, File, AlertCircle, Loader2, Wallet } from 'lucide-react';
-import { uploadFile, generateFileId } from '../lib/api';
+import { uploadFile, uploadChunk, generateFileId } from '../lib/api';
 import { UploadResponse, ApiError } from '../lib/types';
 import { useWallet } from '../hooks/useWallet';
 import { default as WalletConnectComponent } from '../components/WalletConnect';
 import { default as PaymentModalComponent } from '../components/PaymentModal';
+import { chunkFile, shouldChunkFile, calculateProgress, ChunkUploadProgress } from '../lib/chunking';
 
 interface UploadFormProps {
   onUploadSuccess: (response: UploadResponse, file: File) => void;
@@ -19,26 +20,44 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileId, setFileId] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState<any>(null);
+  const [chunkProgress, setChunkProgress] = useState<ChunkUploadProgress | null>(null);
+  const [willBeChunked, setWillBeChunked] = useState(false);
   const { isConnected } = useWallet();
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
-    
+
     const file = acceptedFiles[0];
     setSelectedFile(file);
     setError(null);
-    
+
     if (!isConnected) {
       setError('Please connect your wallet first');
       return;
     }
-    
+
+    // Validate file size limits
+    const MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024; // 1 GB
+    if (file.size > MAX_FILE_SIZE) {
+      setError(`File too large: ${(file.size / 1024 / 1024 / 1024).toFixed(2)} GB (max: 1 GB)`);
+      return;
+    }
+
+    if (file.size === 0) {
+      setError('Cannot upload empty file');
+      return;
+    }
+
     try {
       // Generate fileId and payment details
       const fileIdData = await generateFileId(file.name, file.size);
       setFileId(fileIdData.fileId);
       setPaymentData(fileIdData.payment);
-      
+
+      // Check if file will be chunked
+      const isChunked = fileIdData.chunkingInfo?.willBeChunked || false;
+      setWillBeChunked(isChunked);
+
       // Show payment modal
       setShowPaymentModal(true);
     } catch (err) {
@@ -49,29 +68,111 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
 
   const handlePaymentSuccess = async () => {
     if (!selectedFile || !fileId) return;
-    
+
     setShowPaymentModal(false);
     setIsUploading(true);
     setProgress(0);
+    setChunkProgress(null);
     setError(null);
 
     try {
-      const response = await uploadFile(selectedFile, fileId, (progressValue) => {
-        setProgress(progressValue);
-      });
-      
-      onUploadSuccess(response, selectedFile);
-      setSelectedFile(null);
-      setFileId(null);
-      setPaymentData(null);
-      setIsUploading(false);
-      setProgress(0);
+      // Decide upload strategy based on file size
+      if (willBeChunked) {
+        await handleChunkedUpload(selectedFile, fileId);
+      } else {
+        await handleSingleUpload(selectedFile, fileId);
+      }
+
+      // Note: onUploadSuccess will be called from the respective handlers
     } catch (err) {
       const apiError = err as ApiError;
       setError(apiError.message);
       setIsUploading(false);
       setProgress(0);
+      setChunkProgress(null);
     }
+  };
+
+  const handleSingleUpload = async (file: File, fileId: string) => {
+    const response = await uploadFile(file, fileId, (progressValue) => {
+      setProgress(progressValue);
+    });
+
+    onUploadSuccess(response, file);
+    resetUploadState();
+  };
+
+  const handleChunkedUpload = async (file: File, fileId: string) => {
+    // Split file into chunks
+    const chunkingResult = await chunkFile(file, fileId);
+
+    if (!chunkingResult.willBeChunked || chunkingResult.chunks.length === 0) {
+      throw new Error('File chunking failed');
+    }
+
+    let bytesUploaded = 0;
+    const totalBytes = chunkingResult.totalSize;
+
+    // Upload each chunk sequentially
+    for (let i = 0; i < chunkingResult.chunks.length; i++) {
+      const chunk = chunkingResult.chunks[i];
+
+      // Update chunk progress state
+      const progress = calculateProgress(i, chunkingResult.chunks.length, bytesUploaded, totalBytes);
+      setChunkProgress(progress);
+
+      // Upload this chunk with its own progress tracking
+      await uploadChunk(
+        chunk.chunkData,
+        fileId,
+        chunkingResult.fileName,
+        chunk.chunkIndex,
+        chunk.totalChunks,
+        chunk.chunkHash,
+        chunkingResult.fileHash,
+        chunk.isFirstChunk,
+        chunk.isLastChunk,
+        (chunkProgressValue) => {
+          // Calculate overall progress including this chunk's progress
+          const chunkBytesUploaded = bytesUploaded + (chunk.chunkSize * chunkProgressValue / 100);
+          const overallProgress = Math.round((chunkBytesUploaded / totalBytes) * 100);
+          setProgress(overallProgress);
+        }
+      );
+
+      // Mark chunk as uploaded
+      bytesUploaded += chunk.chunkSize;
+      const finalProgress = calculateProgress(i + 1, chunkingResult.chunks.length, bytesUploaded, totalBytes);
+      setChunkProgress(finalProgress);
+      setProgress(finalProgress.overallProgress);
+    }
+
+    // Create success response (mimicking single upload response)
+    const successResponse: UploadResponse = {
+      fileId: fileId,
+      fileName: file.name,
+      fileSize: file.size,
+      fileHash: chunkingResult.fileHash,
+      uploadDate: new Date().toISOString(),
+      permanentLink: `${window.location.origin}/f/${fileId}`,
+      currentBlobId: 'CHUNKED', // Chunked files don't have single blobId
+      expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+      daysRemaining: 30,
+      refreshHistory: [],
+    };
+
+    onUploadSuccess(successResponse, file);
+    resetUploadState();
+  };
+
+  const resetUploadState = () => {
+    setSelectedFile(null);
+    setFileId(null);
+    setPaymentData(null);
+    setIsUploading(false);
+    setProgress(0);
+    setChunkProgress(null);
+    setWillBeChunked(false);
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -110,9 +211,16 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
             <div className="space-y-4">
               <Loader2 className="w-12 h-12 mx-auto text-blue-600 animate-spin" />
               <div className="space-y-2">
-                <p className="text-lg font-medium text-gray-700">Uploading...</p>
+                <p className="text-lg font-medium text-gray-700">
+                  {willBeChunked ? 'Uploading in chunks...' : 'Uploading...'}
+                </p>
+                {chunkProgress && (
+                  <p className="text-sm text-gray-600">
+                    Chunk {chunkProgress.currentChunk} of {chunkProgress.totalChunks}
+                  </p>
+                )}
                 <div className="w-full bg-gray-200 rounded-full h-2 max-w-xs mx-auto">
-                  <div 
+                  <div
                     className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300 ease-out"
                     style={{ width: `${progress}%` }}
                   />
