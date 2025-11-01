@@ -1,12 +1,15 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, File, AlertCircle, Loader2, Wallet } from 'lucide-react';
+import { Upload, File, AlertCircle, Loader2 } from 'lucide-react';
 import { uploadFile, uploadChunk, generateFileId } from '../lib/api';
 import { UploadResponse, ApiError } from '../lib/types';
 import { useWallet } from '../hooks/useWallet';
 import { default as WalletConnectComponent } from '../components/WalletConnect';
 import { default as PaymentModalComponent } from '../components/PaymentModal';
-import { chunkFile, shouldChunkFile, calculateProgress, ChunkUploadProgress } from '../lib/chunking';
+import { chunkFile, calculateProgress, ChunkUploadProgress } from '../lib/chunking';
+
+// Testing mode: Controlled by NEXT_PUBLIC_SKIP_PAYMENT_CHECKS environment variable
+const SKIP_PAYMENT_CHECKS = process.env.NEXT_PUBLIC_SKIP_PAYMENT_CHECKS === 'true';
 
 interface UploadFormProps {
   onUploadSuccess: (response: UploadResponse, file: File) => void;
@@ -31,7 +34,8 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
     setSelectedFile(file);
     setError(null);
 
-    if (!isConnected) {
+    // Check wallet connection (skip if in testing mode)
+    if (!SKIP_PAYMENT_CHECKS && !isConnected) {
       setError('Please connect your wallet first');
       return;
     }
@@ -51,18 +55,37 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
     try {
       // Generate fileId and payment details
       const fileIdData = await generateFileId(file.name, file.size);
-      setFileId(fileIdData.fileId);
+      const generatedFileId = fileIdData.fileId;
+      setFileId(generatedFileId);
       setPaymentData(fileIdData.payment);
 
       // Check if file will be chunked
       const isChunked = fileIdData.chunkingInfo?.willBeChunked || false;
       setWillBeChunked(isChunked);
 
-      // Show payment modal
-      setShowPaymentModal(true);
+      // Skip payment modal in testing mode
+      if (SKIP_PAYMENT_CHECKS) {
+        setIsUploading(true);
+        setProgress(0);
+        setChunkProgress(null);
+
+        // Decide upload strategy based on file size
+        if (isChunked) {
+          await handleChunkedUpload(file, generatedFileId);
+        } else {
+          await handleSingleUpload(file, generatedFileId);
+        }
+      } else {
+        // Show payment modal in production mode
+        setShowPaymentModal(true);
+      }
     } catch (err) {
-      console.error('Failed to generate fileId:', err);
-      setError('Failed to prepare file for upload. Please try again.');
+      console.error('Failed to upload file:', err);
+      const apiError = err as ApiError;
+      setError(apiError.message || 'Failed to upload file. Please try again.');
+      setIsUploading(false);
+      setProgress(0);
+      setChunkProgress(null);
     }
   }, [isConnected]);
 
@@ -183,10 +206,21 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
 
   return (
     <div className="w-full max-w-2xl mx-auto">
-      {/* Wallet Connection */}
-      <div className="mb-6">
-        <WalletConnectComponent onConnect={() => {}} />
-      </div>
+      {/* Wallet Connection - Hidden in testing mode */}
+      {!SKIP_PAYMENT_CHECKS && (
+        <div className="mb-6">
+          <WalletConnectComponent onConnect={() => {}} />
+        </div>
+      )}
+
+      {/* Testing Mode Indicator */}
+      {SKIP_PAYMENT_CHECKS && (
+        <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-800 font-medium">
+            ⚠️ Testing Mode: Payment checks disabled
+          </p>
+        </div>
+      )}
 
       {/* Upload Area */}
       <div
@@ -269,8 +303,8 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
         </div>
       )}
 
-      {/* Payment Modal */}
-      {showPaymentModal && (
+      {/* Payment Modal - Only shown when not in testing mode */}
+      {!SKIP_PAYMENT_CHECKS && showPaymentModal && (
         <PaymentModalComponent
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}

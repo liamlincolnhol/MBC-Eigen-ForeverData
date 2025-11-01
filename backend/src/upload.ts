@@ -7,6 +7,9 @@ import { eigenDAConfig } from "./config.js";
 import { calculateExpiry, getRemainingDays } from "./utils.js";
 import { calculateRequiredPayment, verifyPayment } from "./utils/payments.js";
 
+// Testing mode: Controlled by SKIP_PAYMENT_VERIFICATION environment variable
+const SKIP_PAYMENT_VERIFICATION = process.env.SKIP_PAYMENT_VERIFICATION === 'true';
+
 // using memory storage
 export const upload = multer({ storage: multer.memoryStorage() });
 
@@ -27,10 +30,14 @@ export async function handleUpload(req: express.Request, res: express.Response) 
 
   // Calculate required payment
   const payment = calculateRequiredPayment(req.file.size);
-  
-  // Check if payment exists and is sufficient for this specific fileId
-  const isValid = await verifyPayment(fileId, payment.requiredAmount);
-  
+
+  // Check if payment exists and is sufficient (skip if in testing mode)
+  let isValid = SKIP_PAYMENT_VERIFICATION;
+
+  if (!SKIP_PAYMENT_VERIFICATION) {
+    isValid = await verifyPayment(fileId, payment.requiredAmount);
+  }
+
   if (!isValid) {
     return res.status(402).json({
       error: "Payment required or insufficient",
@@ -44,6 +51,11 @@ export async function handleUpload(req: express.Request, res: express.Response) 
         }
       }
     });
+  }
+
+  // Log testing mode status
+  if (SKIP_PAYMENT_VERIFICATION) {
+    console.log('⚠️  TESTING MODE: Payment verification skipped');
   }
 
   // Calculate hash
