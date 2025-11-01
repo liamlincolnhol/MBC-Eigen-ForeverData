@@ -12,7 +12,11 @@ CREATE TABLE IF NOT EXISTS files (
     paymentAmount TEXT,  -- Amount in Wei (stored as string to handle large numbers)
     paymentTxHash TEXT,
     lastBalanceCheck TEXT,  -- Timestamp of last contract balance check
-    contractBalance TEXT    -- Current balance in Wei (stored as string)
+    contractBalance TEXT,   -- Current balance in Wei (stored as string)
+    -- File chunking support for files > 16 MiB
+    isChunked BOOLEAN DEFAULT 0,  -- 0 = single blob, 1 = chunked file
+    chunkSize INTEGER,            -- Standard chunk size (16777216 bytes = 16 MiB)
+    chunks TEXT                   -- JSON array of chunk metadata
 );
 
 -- Track payment transactions

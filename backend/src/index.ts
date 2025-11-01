@@ -3,11 +3,12 @@ import multer from "multer";
 import cors from "cors";
 import { v4 } from "uuid";
 import { handleUpload } from "./upload.js";
+import { handleChunkUpload } from "./uploadChunk.js";
 import { handleFetch } from "./fetch.js";
 import { logEigenDAConfig } from "./config.js";
 import { refreshFiles } from "./jobs/refresh.js";
 import { initializeDb, getExpiringFiles, getFileMetadata, getAllFiles } from "./db.js";
-import { calculateRequiredPayment } from "./utils/payments.js";
+import { calculateRequiredPayment, calculateChunkedPayment } from "./utils/payments.js";
 
 const app = express();
 
@@ -50,6 +51,10 @@ app.use(express.urlencoded({ extended: true }));
 // Upload endpoint
 // Receives a file, hashes it, uploads to EigenDA, saves metadata, returns permanent link
 app.post("/upload", upload.single("file"), handleUpload);
+
+// Chunk upload endpoint
+// Receives a file chunk, uploads to EigenDA, stores chunk metadata
+app.post("/upload-chunk", upload.single("chunk"), handleChunkUpload);
 
 // Fetch endpoint
 // Fetches file by fileId (serves latest blob from EigenDA)
@@ -100,17 +105,17 @@ app.post("/api/admin/trigger-refresh", async (req, res) => {
 app.post("/api/generate-fileid", async (req, res) => {
   try {
     const { fileName, fileSize } = req.body;
-    
+
     if (!fileName || !fileSize) {
       return res.status(400).json({ error: "fileName and fileSize are required" });
     }
-    
+
     // Generate consistent fileId using filename and size
     const fileId = v4();
-    
-    // Calculate payment details
-    const payment = calculateRequiredPayment(fileSize);
-    
+
+    // Calculate payment details with chunking info
+    const payment = calculateChunkedPayment(fileSize);
+
     res.json({
       fileId,
       payment: {
@@ -120,6 +125,11 @@ app.post("/api/generate-fileid", async (req, res) => {
           storageCost: payment.breakdown.storageCost.toString(),
           gasCost: payment.breakdown.gasCost.toString()
         }
+      },
+      chunkingInfo: {
+        willBeChunked: payment.isChunked,
+        totalChunks: payment.chunkCount,
+        chunkSize: payment.chunkSize
       }
     });
   } catch (error) {

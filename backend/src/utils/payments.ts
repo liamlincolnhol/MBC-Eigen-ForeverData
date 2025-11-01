@@ -3,6 +3,7 @@ import { getContractInstance } from './contract.js';
 
 // Base gas cost for EigenDA operations (rough estimate)
 const BASE_GAS_COST = ethers.parseEther('0.0001');
+const CHUNK_SIZE = 16 * 1024 * 1024; // 16 MiB in bytes
 
 export interface PaymentDetails {
     requiredAmount: bigint;  // in Wei
@@ -11,6 +12,12 @@ export interface PaymentDetails {
         storageCost: bigint;
         gasCost: bigint;
     };
+}
+
+export interface ChunkedPaymentDetails extends PaymentDetails {
+    chunkCount: number;
+    chunkSize: number;
+    isChunked: boolean;
 }
 
 /**
@@ -23,13 +30,13 @@ export function calculateRequiredPayment(fileSize: number, targetDuration: numbe
     const sizeInMB = fileSize / (1024 * 1024);
     const costPerMB = ethers.parseEther('0.001'); // 0.001 ETH per MB
     const storageCost = costPerMB * BigInt(Math.ceil(sizeInMB));
-    
+
     // Add base gas cost for operations
     const totalGasCost = BASE_GAS_COST;
-    
+
     // Total required amount
     const requiredAmount = storageCost + totalGasCost;
-    
+
     return {
         requiredAmount,
         estimatedDuration: targetDuration,
@@ -37,6 +44,39 @@ export function calculateRequiredPayment(fileSize: number, targetDuration: numbe
             storageCost,
             gasCost: totalGasCost
         }
+    };
+}
+
+/**
+ * Calculate required payment with chunking information
+ * @param fileSize File size in bytes
+ * @param targetDuration Target duration in days (optional, defaults to 30)
+ * @returns Payment details including chunk count and chunking info
+ */
+export function calculateChunkedPayment(fileSize: number, targetDuration: number = 30): ChunkedPaymentDetails {
+    const isChunked = fileSize > CHUNK_SIZE;
+    const chunkCount = isChunked ? Math.ceil(fileSize / CHUNK_SIZE) : 1;
+
+    // Calculate base payment
+    const sizeInMB = fileSize / (1024 * 1024);
+    const costPerMB = ethers.parseEther('0.001');
+    const storageCost = costPerMB * BigInt(Math.ceil(sizeInMB));
+
+    // Gas cost scales with number of chunks (each chunk requires a separate transaction)
+    const totalGasCost = BASE_GAS_COST * BigInt(chunkCount);
+
+    const requiredAmount = storageCost + totalGasCost;
+
+    return {
+        requiredAmount,
+        estimatedDuration: targetDuration,
+        breakdown: {
+            storageCost,
+            gasCost: totalGasCost
+        },
+        chunkCount,
+        chunkSize: CHUNK_SIZE,
+        isChunked
     };
 }
 
