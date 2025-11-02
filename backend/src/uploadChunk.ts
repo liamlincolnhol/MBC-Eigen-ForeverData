@@ -7,9 +7,9 @@ import { eigenDAConfig } from "./config.js";
 import { calculateExpiry } from "./utils.js";
 import type { ChunkMetadata } from "./types/chunking.js";
 
-const CHUNK_SIZE = 16 * 1024 * 1024; // 16 MiB
+const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB - stays within 8 MiB EigenDA proxy limit
 const MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024; // 1 GB maximum file size
-const MAX_CHUNKS = Math.ceil(MAX_FILE_SIZE / CHUNK_SIZE); // 64 chunks for 1 GB
+const MAX_CHUNKS = Math.ceil(MAX_FILE_SIZE / CHUNK_SIZE); // 256 chunks for 1 GB with 4 MiB chunks
 
 /**
  * Upload a chunk to EigenDA and return the certificate
@@ -124,7 +124,7 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
   console.log(`\nProcessing chunk ${chunkIdx + 1}/${total} for file ${fileId}`);
   console.log(`Actual chunk size: ${actualChunkSize} bytes`);
 
-  // Validate chunk size (should be <= 16 MiB)
+  // Validate chunk size (should be <= 4 MiB)
   if (actualChunkSize > CHUNK_SIZE) {
     return res.status(400).json({
       error: `Chunk too large: ${actualChunkSize} bytes (max: ${CHUNK_SIZE})`

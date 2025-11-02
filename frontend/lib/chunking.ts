@@ -2,11 +2,12 @@
  * File Chunking Utilities
  *
  * Handles splitting large files into chunks for upload to EigenDA.
- * Files larger than CHUNK_SIZE (16 MiB) are split into multiple chunks.
+ * Files larger than CHUNK_SIZE (4 MiB) are split into multiple chunks.
+ * Each chunk is uploaded separately to EigenDA proxy (8 MiB limit).
  */
 
 // Constants matching backend configuration
-export const CHUNK_SIZE = 16 * 1024 * 1024; // 16 MiB - matches backend CHUNK_SIZE
+export const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB - stays within 8 MiB proxy limit with margin
 
 export interface ChunkInfo {
   chunkIndex: number;        // 0-based chunk index

@@ -120,5 +120,5 @@ sed -i '' 's/SKIP_PAYMENT_VERIFICATION=true/SKIP_PAYMENT_VERIFICATION=false/' ba
 
 **Testing chunked uploads:**
 - Testing mode works for both single-file and chunked uploads
-- Upload files > 16 MB to test chunking behavior
+- Upload files > 4 MB to test chunking behavior
 - Progress indicator shows chunk progress even in testing mode

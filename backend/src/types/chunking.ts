@@ -11,7 +11,7 @@ export interface ChunkedFileRecord {
   hash: string;            // Overall file SHA256
   isChunked: boolean;      // true for chunked files
   fileSize: number;        // Total file size
-  chunkSize: number;       // Standard chunk size (16 MiB)
+  chunkSize: number;       // Standard chunk size (4 MiB)
   chunks: ChunkMetadata[]; // Array of chunk data
   expiry: string;
   createdAt: string;
