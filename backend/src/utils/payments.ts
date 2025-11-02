@@ -3,7 +3,7 @@ import { getContractInstance } from './contract.js';
 
 // Base gas cost for EigenDA operations (rough estimate)
 const BASE_GAS_COST = ethers.parseEther('0.0001');
-const CHUNK_SIZE = 16 * 1024 * 1024; // 16 MiB in bytes
+const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB in bytes - matches chunking configuration
 
 export interface PaymentDetails {
     requiredAmount: bigint;  // in Wei
