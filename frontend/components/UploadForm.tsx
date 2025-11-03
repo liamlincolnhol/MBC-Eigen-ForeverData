@@ -1,12 +1,12 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, File, AlertCircle, Loader2 } from 'lucide-react';
 import { uploadFile, uploadChunk, generateFileId } from '../lib/api';
-import { UploadResponse, ApiError } from '../lib/types';
-import { useWallet } from '../hooks/useWallet';
-import { default as WalletConnectComponent } from '../components/WalletConnect';
-import { default as PaymentModalComponent } from '../components/PaymentModal';
+import { UploadResponse, ApiError, PaymentSummary } from '../lib/types';
+import WalletConnect from './WalletConnectNew';
+import PaymentModal from './PaymentModalNew';
 import { chunkFile, calculateProgress, ChunkUploadProgress } from '../lib/chunking';
+import { useAccount } from 'wagmi';
 
 // Testing mode: Controlled by NEXT_PUBLIC_SKIP_PAYMENT_CHECKS environment variable
 const SKIP_PAYMENT_CHECKS = process.env.NEXT_PUBLIC_SKIP_PAYMENT_CHECKS === 'true';
@@ -22,10 +22,15 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileId, setFileId] = useState<string | null>(null);
-  const [paymentData, setPaymentData] = useState<any>(null);
+  const [paymentData, setPaymentData] = useState<PaymentSummary | null>(null);
   const [chunkProgress, setChunkProgress] = useState<ChunkUploadProgress | null>(null);
   const [willBeChunked, setWillBeChunked] = useState(false);
-  const { isConnected } = useWallet();
+  const { address, isConnected } = useAccount();
+  const [connectedAddress, setConnectedAddress] = useState<string | null>(address ?? null);
+
+  useEffect(() => {
+    setConnectedAddress(address ?? null);
+  }, [address]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
@@ -57,7 +62,15 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
       const fileIdData = await generateFileId(file.name, file.size);
       const generatedFileId = fileIdData.fileId;
       setFileId(generatedFileId);
-      setPaymentData(fileIdData.payment);
+      setPaymentData({
+        requiredAmount: BigInt(fileIdData.payment.requiredAmount),
+        estimatedDuration: fileIdData.payment.estimatedDuration,
+        breakdown: {
+          storageCost: BigInt(fileIdData.payment.breakdown.storageCost),
+          gasCost: BigInt(fileIdData.payment.breakdown.gasCost)
+        },
+        chunkCount: fileIdData.chunkingInfo?.totalChunks
+      });
 
       // Check if file will be chunked
       const isChunked = fileIdData.chunkingInfo?.willBeChunked || false;
@@ -209,7 +222,7 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
       {/* Wallet Connection - Hidden in testing mode */}
       {!SKIP_PAYMENT_CHECKS && (
         <div className="mb-6">
-          <WalletConnectComponent onConnect={() => {}} />
+      <WalletConnect onConnect={(walletAddress) => setConnectedAddress(walletAddress)} showBalance={true} />
         </div>
       )}
 
@@ -305,13 +318,14 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
 
       {/* Payment Modal - Only shown when not in testing mode */}
       {!SKIP_PAYMENT_CHECKS && showPaymentModal && (
-        <PaymentModalComponent
+        <PaymentModal
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
           onPaymentSuccess={handlePaymentSuccess}
           file={selectedFile}
           fileId={fileId}
           paymentData={paymentData}
+          walletAddress={connectedAddress}
         />
       )}
     </div>

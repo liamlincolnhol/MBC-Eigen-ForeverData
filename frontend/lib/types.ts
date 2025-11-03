@@ -54,3 +54,13 @@ export interface FileStatus {
   timeUntilExpiry: string;
   daysRemaining: number;
 }
+
+export interface PaymentSummary {
+  requiredAmount: bigint;
+  estimatedDuration: number;
+  breakdown: {
+    storageCost: bigint;
+    gasCost: bigint;
+  };
+  chunkCount?: number;
+}

@@ -52,8 +52,7 @@ export function calculatePaymentDetails(
 import deploymentInfo from './contracts/deployment.json' with { type: "json" };
 export const FOREVER_DATA_PAYMENTS_ADDRESS = deploymentInfo.ForeverDataPayments.address;
 export const FOREVER_DATA_PAYMENTS_ABI = [
-    // Based on the contract we saw
     'function depositForFile(string fileId) external payable',
-    'function fileBalances(string) external view returns (uint256)',
-    'function fileOwners(string) external view returns (address)'
+    'function getFileBalance(string fileId) external view returns (uint256)',
+    'function getFileOwner(string fileId) external view returns (address)'
 ];

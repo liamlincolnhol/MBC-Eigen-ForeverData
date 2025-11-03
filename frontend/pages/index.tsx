@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
-import { CheckCircle, Upload, BarChart3, Wallet } from 'lucide-react';
+import { CheckCircle, Upload, BarChart3 } from 'lucide-react';
 import UploadForm from '../components/UploadForm';
 import Dashboard from '../components/Dashboard';
-import WalletConnect from '../components/WalletConnect';
-import PaymentModal from '../components/PaymentModal';
 import { UploadResponse } from '../lib/types';
-import { useWallet } from '../hooks/useWallet';
 
 export default function HomePage() {
   const [uploadResult, setUploadResult] = useState<{response: UploadResponse, file: File} | null>(null);
