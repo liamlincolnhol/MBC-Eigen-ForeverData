@@ -28,6 +28,9 @@ export async function handleUpload(req: express.Request, res: express.Response) 
     });
   }
 
+  const walletAddressRaw = req.body.walletAddress;
+  const walletAddress = walletAddressRaw ? String(walletAddressRaw).toLowerCase() : undefined;
+
   // Determine requested storage duration
   let targetDuration = 30;
   if (req.body.targetDuration !== undefined) {
@@ -125,7 +128,18 @@ export async function handleUpload(req: express.Request, res: express.Response) 
 
     // Store in database
     const expiry = calculateExpiry(targetDuration);
-    await insertFile(fileId, req.file.originalname, fileHash, certificate, expiry, req.file.size, 'pending', undefined, undefined, blobKey);
+    await insertFile(
+      fileId,
+      req.file.originalname,
+      fileHash,
+      certificate,
+      expiry,
+      req.file.size,
+      walletAddress ? 'paid' : 'pending',
+      walletAddress,
+      undefined,
+      blobKey
+    );
 
     // Respond with metadata
     res.json({

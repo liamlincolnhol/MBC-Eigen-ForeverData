@@ -145,9 +145,15 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
   };
 
   const handleSingleUpload = async (file: File, fileId: string, targetDuration: number) => {
-    const response = await uploadFile(file, fileId, (progressValue) => {
-      setProgress(progressValue);
-    }, targetDuration);
+    const response = await uploadFile(
+      file,
+      fileId,
+      (progressValue) => {
+        setProgress(progressValue);
+      },
+      targetDuration,
+      connectedAddress
+    );
 
     onUploadSuccess(response, file);
     resetUploadState();
@@ -189,7 +195,8 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
           const overallProgress = Math.round((chunkBytesUploaded / totalBytes) * 100);
           setProgress(overallProgress);
         },
-        targetDuration
+        targetDuration,
+        connectedAddress
       );
 
       // Mark chunk as uploaded
@@ -208,8 +215,8 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
       uploadDate: new Date().toISOString(),
       permanentLink: `${window.location.origin}/f/${fileId}`,
       currentBlobId: 'CHUNKED', // Chunked files don't have single blobId
-      expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-      daysRemaining: 30,
+      expiryDate: new Date(Date.now() + targetDuration * 24 * 60 * 60 * 1000).toISOString(),
+      daysRemaining: targetDuration,
       refreshHistory: [],
     };
 

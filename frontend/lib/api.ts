@@ -14,7 +14,8 @@ export async function uploadFile(
   file: File,
   fileId: string,
   onProgress?: (progress: number) => void,
-  targetDuration?: number
+  targetDuration?: number,
+  walletAddress?: string | null
 ): Promise<UploadResponse> {
   try {
     const formData = new FormData();
@@ -22,6 +23,9 @@ export async function uploadFile(
     formData.append('fileId', fileId);
     if (targetDuration && targetDuration > 0) {
       formData.append('targetDuration', targetDuration.toString());
+    }
+    if (walletAddress) {
+      formData.append('walletAddress', walletAddress);
     }
 
     const response = await api.post<UploadResponse>('/upload', formData, {
@@ -83,7 +87,8 @@ export async function uploadChunk(
   isFirstChunk: boolean,
   isLastChunk: boolean,
   onProgress?: (progress: number) => void,
-  targetDuration?: number
+  targetDuration?: number,
+  walletAddress?: string | null
 ): Promise<{
   success: boolean;
   message: string;
@@ -105,6 +110,9 @@ export async function uploadChunk(
     formData.append('isLastChunk', isLastChunk.toString());
     if (targetDuration && targetDuration > 0) {
       formData.append('targetDuration', targetDuration.toString());
+    }
+    if (walletAddress) {
+      formData.append('walletAddress', walletAddress);
     }
 
     const response = await api.post('/upload-chunk', formData, {

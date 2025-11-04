@@ -26,20 +26,20 @@ export interface ChunkedPaymentDetails extends PaymentDetails {
  * @param targetDuration Target duration in days (optional, defaults to 30)
  */
 export function calculateRequiredPayment(fileSize: number, targetDuration: number = 30): PaymentDetails {
-    // Much simpler pricing: 0.001 ETH per MB for 30 days
+    const roundedDays = Math.max(1, Math.ceil(targetDuration));
     const sizeInMB = fileSize / (1024 * 1024);
-    const costPerMB = ethers.parseEther('0.001'); // 0.001 ETH per MB
-    const storageCost = costPerMB * BigInt(Math.ceil(sizeInMB));
+    const roundedSizeInMB = Math.max(1, Math.ceil(sizeInMB));
 
-    // Add base gas cost for operations
+    const costPerMb30Days = ethers.parseEther('0.001');
+    const numerator = costPerMb30Days * BigInt(roundedSizeInMB) * BigInt(roundedDays);
+    const storageCost = (numerator + BigInt(29)) / BigInt(30); // round up to avoid undercharging
+
     const totalGasCost = BASE_GAS_COST;
-
-    // Total required amount
     const requiredAmount = storageCost + totalGasCost;
 
     return {
         requiredAmount,
-        estimatedDuration: targetDuration,
+        estimatedDuration: roundedDays,
         breakdown: {
             storageCost,
             gasCost: totalGasCost
@@ -57,19 +57,20 @@ export function calculateChunkedPayment(fileSize: number, targetDuration: number
     const isChunked = fileSize > CHUNK_SIZE;
     const chunkCount = isChunked ? Math.ceil(fileSize / CHUNK_SIZE) : 1;
 
-    // Calculate base payment
+    const roundedDays = Math.max(1, Math.ceil(targetDuration));
     const sizeInMB = fileSize / (1024 * 1024);
-    const costPerMB = ethers.parseEther('0.001');
-    const storageCost = costPerMB * BigInt(Math.ceil(sizeInMB));
+    const roundedSizeInMB = Math.max(1, Math.ceil(sizeInMB));
 
-    // Gas cost scales with number of chunks (each chunk requires a separate transaction)
+    const costPerMb30Days = ethers.parseEther('0.001');
+    const numerator = costPerMb30Days * BigInt(roundedSizeInMB) * BigInt(roundedDays);
+    const storageCost = (numerator + BigInt(29)) / BigInt(30);
+
     const totalGasCost = BASE_GAS_COST * BigInt(chunkCount);
-
     const requiredAmount = storageCost + totalGasCost;
 
     return {
         requiredAmount,
-        estimatedDuration: targetDuration,
+        estimatedDuration: roundedDays,
         breakdown: {
             storageCost,
             gasCost: totalGasCost

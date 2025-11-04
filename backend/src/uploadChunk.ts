@@ -2,7 +2,7 @@ import express from "express";
 import crypto from "crypto";
 import fetch from "node-fetch";
 import path from "path";
-import { addChunkToFile, initializeChunkedFile, getFileMetadata } from "./db.js";
+import { addChunkToFile, initializeChunkedFile, getFileMetadata, updatePaymentStatus } from "./db.js";
 import { eigenDAConfig } from "./config.js";
 import { calculateExpiry } from "./utils.js";
 import type { ChunkMetadata } from "./types/chunking.js";
@@ -52,7 +52,8 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
     return res.status(400).json({ message: "No chunk uploaded" });
   }
 
-  const { fileId, fileName, chunkIndex, totalChunks, isFirstChunk, isLastChunk, targetDuration } = req.body;
+  const { fileId, fileName, chunkIndex, totalChunks, isFirstChunk, isLastChunk, targetDuration, walletAddress } = req.body;
+  const normalizedWalletAddress = walletAddress ? String(walletAddress).toLowerCase() : undefined;
 
   // === INPUT VALIDATION ===
   if (!fileId || chunkIndex === undefined || !totalChunks || !fileName) {
@@ -195,7 +196,8 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
         0, // Will be calculated from sum of chunks
         CHUNK_SIZE,
         expiry,
-        'pending'
+        normalizedWalletAddress ? 'paid' : 'pending',
+        normalizedWalletAddress
       );
     }
 
@@ -260,6 +262,11 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
 
         // Update file record with real total size
         await updateFileSize(fileId, actualTotalSize);
+        if (normalizedWalletAddress) {
+          await updatePaymentStatus(fileId, 'paid', normalizedWalletAddress);
+        } else {
+          await updatePaymentStatus(fileId, 'paid');
+        }
       }
     }
 
