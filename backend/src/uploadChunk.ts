@@ -281,10 +281,3 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
     });
   }
 }
-  let duration = 30;
-  if (targetDuration !== undefined) {
-    const parsedDuration = parseInt(targetDuration, 10);
-    if (!Number.isNaN(parsedDuration) && parsedDuration > 0) {
-      duration = Math.min(parsedDuration, 365 * 5);
-    }
-  }
