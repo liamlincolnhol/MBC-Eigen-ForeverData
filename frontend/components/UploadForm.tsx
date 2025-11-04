@@ -207,13 +207,14 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
     }
 
     // Create success response (mimicking single upload response)
+    const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || 'https://api.foreverdata.live').replace(/\/$/, '');
     const successResponse: UploadResponse = {
       fileId: fileId,
       fileName: file.name,
       fileSize: file.size,
       fileHash: chunkingResult.fileHash,
       uploadDate: new Date().toISOString(),
-      permanentLink: `${window.location.origin}/f/${fileId}`,
+      permanentLink: `${apiBaseUrl}/f/${fileId}`,
       currentBlobId: 'CHUNKED', // Chunked files don't have single blobId
       expiryDate: new Date(Date.now() + targetDuration * 24 * 60 * 60 * 1000).toISOString(),
       daysRemaining: targetDuration,
