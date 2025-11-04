@@ -1,6 +1,7 @@
-export function calculateExpiry(): string {
+export function calculateExpiry(days: number = 30): string {
+  const safeDays = Number.isFinite(days) && days > 0 ? days : 30;
   const expiry = new Date();
-  expiry.setDate(expiry.getDate() + 14); // 14 days from now
+  expiry.setDate(expiry.getDate() + safeDays);
   
   // Format as SQLite datetime: YYYY-MM-DD HH:MM:SS
   const year = expiry.getFullYear();

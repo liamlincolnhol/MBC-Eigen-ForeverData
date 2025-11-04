@@ -1,4 +1,5 @@
 import { ethers } from 'ethers';
+import { parseAbi } from 'viem';
 
 export interface PaymentDetails {
     totalAmount: bigint;      // Total amount in wei
@@ -51,8 +52,8 @@ export function calculatePaymentDetails(
 // Import deployment info
 import deploymentInfo from './contracts/deployment.json' with { type: "json" };
 export const FOREVER_DATA_PAYMENTS_ADDRESS = deploymentInfo.ForeverDataPayments.address;
-export const FOREVER_DATA_PAYMENTS_ABI = [
-    'function depositForFile(string fileId) external payable',
-    'function getFileBalance(string fileId) external view returns (uint256)',
-    'function getFileOwner(string fileId) external view returns (address)'
-];
+export const FOREVER_DATA_PAYMENTS_ABI = parseAbi([
+    'function depositForFile(string fileId) payable',
+    'function getFileBalance(string fileId) view returns (uint256)',
+    'function getFileOwner(string fileId) view returns (address)'
+]);

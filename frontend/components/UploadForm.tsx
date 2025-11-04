@@ -25,8 +25,10 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
   const [paymentData, setPaymentData] = useState<PaymentSummary | null>(null);
   const [chunkProgress, setChunkProgress] = useState<ChunkUploadProgress | null>(null);
   const [willBeChunked, setWillBeChunked] = useState(false);
+  const [chunkInfo, setChunkInfo] = useState<{ totalChunks: number; chunkSize: number } | null>(null);
   const { address, isConnected } = useAccount();
   const [connectedAddress, setConnectedAddress] = useState<string | null>(address ?? null);
+  const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
 
   useEffect(() => {
     setConnectedAddress(address ?? null);
@@ -71,10 +73,15 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
         },
         chunkCount: fileIdData.chunkingInfo?.totalChunks
       });
+      setSelectedDuration(fileIdData.payment.estimatedDuration);
 
       // Check if file will be chunked
       const isChunked = fileIdData.chunkingInfo?.willBeChunked || false;
       setWillBeChunked(isChunked);
+      setChunkInfo({
+        totalChunks: fileIdData.chunkingInfo?.totalChunks ?? 1,
+        chunkSize: fileIdData.chunkingInfo?.chunkSize ?? 0
+      });
 
       // Skip payment modal in testing mode
       if (SKIP_PAYMENT_CHECKS) {
@@ -84,9 +91,9 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
 
         // Decide upload strategy based on file size
         if (isChunked) {
-          await handleChunkedUpload(file, generatedFileId);
+          await handleChunkedUpload(file, generatedFileId, fileIdData.payment.estimatedDuration);
         } else {
-          await handleSingleUpload(file, generatedFileId);
+          await handleSingleUpload(file, generatedFileId, fileIdData.payment.estimatedDuration);
         }
       } else {
         // Show payment modal in production mode
@@ -114,9 +121,17 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
     try {
       // Decide upload strategy based on file size
       if (willBeChunked) {
-        await handleChunkedUpload(selectedFile, fileId);
+        await handleChunkedUpload(
+          selectedFile,
+          fileId,
+          selectedDuration ?? paymentData?.estimatedDuration ?? 30
+        );
       } else {
-        await handleSingleUpload(selectedFile, fileId);
+        await handleSingleUpload(
+          selectedFile,
+          fileId,
+          selectedDuration ?? paymentData?.estimatedDuration ?? 30
+        );
       }
 
       // Note: onUploadSuccess will be called from the respective handlers
@@ -129,16 +144,16 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
     }
   };
 
-  const handleSingleUpload = async (file: File, fileId: string) => {
+  const handleSingleUpload = async (file: File, fileId: string, targetDuration: number) => {
     const response = await uploadFile(file, fileId, (progressValue) => {
       setProgress(progressValue);
-    });
+    }, targetDuration);
 
     onUploadSuccess(response, file);
     resetUploadState();
   };
 
-  const handleChunkedUpload = async (file: File, fileId: string) => {
+  const handleChunkedUpload = async (file: File, fileId: string, targetDuration: number) => {
     // Split file into chunks
     const chunkingResult = await chunkFile(file, fileId);
 
@@ -173,7 +188,8 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
           const chunkBytesUploaded = bytesUploaded + (chunk.chunkSize * chunkProgressValue / 100);
           const overallProgress = Math.round((chunkBytesUploaded / totalBytes) * 100);
           setProgress(overallProgress);
-        }
+        },
+        targetDuration
       );
 
       // Mark chunk as uploaded
@@ -209,6 +225,8 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
     setProgress(0);
     setChunkProgress(null);
     setWillBeChunked(false);
+    setChunkInfo(null);
+    setSelectedDuration(null);
   };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -326,6 +344,22 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
           fileId={fileId}
           paymentData={paymentData}
           walletAddress={connectedAddress}
+          chunkCount={chunkInfo?.totalChunks ?? 1}
+          onQuoteChange={(quote, days) => {
+            setPaymentData((prev) => {
+              if (
+                prev &&
+                prev.requiredAmount === quote.requiredAmount &&
+                prev.estimatedDuration === quote.estimatedDuration &&
+                prev.breakdown.storageCost === quote.breakdown.storageCost &&
+                prev.breakdown.gasCost === quote.breakdown.gasCost
+              ) {
+                return prev;
+              }
+              return quote;
+            });
+            setSelectedDuration(days);
+          }}
         />
       )}
     </div>

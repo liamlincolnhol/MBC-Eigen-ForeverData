@@ -29,7 +29,7 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
   const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [topUpTarget, setTopUpTarget] = useState<{ file: FileData; balance: bigint } | null>(null);
+  const [topUpTarget, setTopUpTarget] = useState<{ file: FileData; balance: bigint; owner: string | null } | null>(null);
 
   const fetchFiles = useCallback(async () => {
     if (!address) return;
@@ -157,8 +157,9 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
                     fileName={file.fileName}
                     fileSize={file.fileSize ?? 0}
                     createdAt={file.createdAt}
+                    permanentLink={openFileUrl(file.fileId)}
                     ownerAddress={file.payerAddress}
-                    onTopUp={(balance) => setTopUpTarget({ file, balance })}
+                    onTopUp={(balance, owner) => setTopUpTarget({ file, balance, owner })}
                     onView={() => handleView(file.fileId)}
                     onDownload={() => handleDownload(file.fileId)}
                   />
@@ -219,7 +220,7 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
           fileName={topUpTarget.file.fileName}
           fileSize={topUpTarget.file.fileSize ?? 0}
           currentBalance={topUpTarget.balance}
-          fileOwner={topUpTarget.file.payerAddress ?? ''}
+          fileOwner={topUpTarget.owner ?? topUpTarget.file.payerAddress ?? ''}
         />
       )}
     </>

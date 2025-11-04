@@ -52,7 +52,7 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
     return res.status(400).json({ message: "No chunk uploaded" });
   }
 
-  const { fileId, fileName, chunkIndex, totalChunks, isFirstChunk, isLastChunk } = req.body;
+  const { fileId, fileName, chunkIndex, totalChunks, isFirstChunk, isLastChunk, targetDuration } = req.body;
 
   // === INPUT VALIDATION ===
   if (!fileId || chunkIndex === undefined || !totalChunks || !fileName) {
@@ -177,7 +177,7 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
     // If this is the first chunk, initialize the file record
     if (isFirst) {
       console.log(`Initializing chunked file record for ${sanitizedFileName}`);
-      const expiry = calculateExpiry();
+      const expiry = calculateExpiry(duration);
       const fileHash = req.body.fileHash;
 
       await initializeChunkedFile(
@@ -273,3 +273,10 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
     });
   }
 }
+  let duration = 30;
+  if (targetDuration !== undefined) {
+    const parsedDuration = parseInt(targetDuration, 10);
+    if (!Number.isNaN(parsedDuration) && parsedDuration > 0) {
+      duration = Math.min(parsedDuration, 365 * 5);
+    }
+  }

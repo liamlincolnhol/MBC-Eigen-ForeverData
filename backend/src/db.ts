@@ -232,6 +232,39 @@ export async function getAllFiles(): Promise<any[]> {
   return rows || [];
 }
 
+// function to get files owned by a specific wallet address
+export async function getFilesByOwner(walletAddress: string): Promise<any[]> {
+  if (!db) throw new Error("Database not initialized");
+
+  // Normalize address to lowercase for case-insensitive matching
+  const normalizedAddress = walletAddress.toLowerCase();
+
+  const sql = `
+    SELECT *,
+      CASE
+        WHEN expiry <= datetime('now') THEN 'expired'
+        WHEN expiry <= datetime('now', '+24 hours') THEN 'expiring_soon'
+        ELSE 'active'
+      END as status,
+      ROUND((julianday(expiry) - julianday('now'))) as days_remaining
+    FROM files
+    WHERE LOWER(payerAddress) = ?
+    ORDER BY createdAt DESC
+  `;
+  const rows = await db.all(sql, [normalizedAddress]);
+
+  // Parse chunks JSON for chunked files
+  if (rows) {
+    rows.forEach(file => {
+      if (file.chunks) {
+        file.chunks = JSON.parse(file.chunks);
+      }
+    });
+  }
+
+  return rows || [];
+}
+
 // function to update contract balance info
 export async function updateContractBalance(
   fileId: string,

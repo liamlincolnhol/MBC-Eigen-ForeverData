@@ -13,12 +13,16 @@ const api = axios.create({
 export async function uploadFile(
   file: File,
   fileId: string,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  targetDuration?: number
 ): Promise<UploadResponse> {
   try {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('fileId', fileId);
+    if (targetDuration && targetDuration > 0) {
+      formData.append('targetDuration', targetDuration.toString());
+    }
 
     const response = await api.post<UploadResponse>('/upload', formData, {
       headers: {
@@ -39,7 +43,7 @@ export async function uploadFile(
 }
 
 // Generate fileId for payment flow
-export async function generateFileId(fileName: string, fileSize: number): Promise<{
+export async function generateFileId(fileName: string, fileSize: number, targetDuration?: number): Promise<{
   fileId: string;
   payment: {
     requiredAmount: string;
@@ -58,7 +62,8 @@ export async function generateFileId(fileName: string, fileSize: number): Promis
   try {
     const response = await api.post('/api/generate-fileid', {
       fileName,
-      fileSize
+      fileSize,
+      targetDuration
     });
     return response.data;
   } catch (error) {
@@ -77,7 +82,8 @@ export async function uploadChunk(
   fileHash: string,
   isFirstChunk: boolean,
   isLastChunk: boolean,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  targetDuration?: number
 ): Promise<{
   success: boolean;
   message: string;
@@ -97,6 +103,9 @@ export async function uploadChunk(
     formData.append('fileHash', fileHash);
     formData.append('isFirstChunk', isFirstChunk.toString());
     formData.append('isLastChunk', isLastChunk.toString());
+    if (targetDuration && targetDuration > 0) {
+      formData.append('targetDuration', targetDuration.toString());
+    }
 
     const response = await api.post('/upload-chunk', formData, {
       headers: {

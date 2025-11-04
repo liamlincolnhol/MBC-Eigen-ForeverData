@@ -28,8 +28,17 @@ export async function handleUpload(req: express.Request, res: express.Response) 
     });
   }
 
+  // Determine requested storage duration
+  let targetDuration = 30;
+  if (req.body.targetDuration !== undefined) {
+    const parsedDuration = parseInt(req.body.targetDuration, 10);
+    if (!Number.isNaN(parsedDuration) && parsedDuration > 0) {
+      targetDuration = Math.min(parsedDuration, 365 * 5); // Cap at ~5 years
+    }
+  }
+
   // Calculate required payment
-  const payment = calculateRequiredPayment(req.file.size);
+  const payment = calculateRequiredPayment(req.file.size, targetDuration);
 
   // Check if payment exists and is sufficient (skip if in testing mode)
   let isValid = SKIP_PAYMENT_VERIFICATION;
@@ -115,7 +124,7 @@ export async function handleUpload(req: express.Request, res: express.Response) 
     console.log(`Blob Key: 0x${blobKey}`);
 
     // Store in database
-    const expiry = calculateExpiry();
+    const expiry = calculateExpiry(targetDuration);
     await insertFile(fileId, req.file.originalname, fileHash, certificate, expiry, req.file.size, 'pending', undefined, undefined, blobKey);
 
     // Respond with metadata

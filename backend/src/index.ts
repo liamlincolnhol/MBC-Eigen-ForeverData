@@ -7,7 +7,7 @@ import { handleChunkUpload } from "./uploadChunk.js";
 import { handleFetch } from "./fetch.js";
 import { logEigenDAConfig } from "./config.js";
 import { refreshFiles } from "./jobs/refresh.js";
-import { initializeDb, getExpiringFiles, getFileMetadata, getAllFiles } from "./db.js";
+import { initializeDb, getExpiringFiles, getFileMetadata, getAllFiles, getFilesByOwner } from "./db.js";
 import { calculateRequiredPayment, calculateChunkedPayment } from "./utils/payments.js";
 
 const app = express();
@@ -104,17 +104,25 @@ app.post("/api/admin/trigger-refresh", async (req, res) => {
 // Generate fileId endpoint for payment flow
 app.post("/api/generate-fileid", async (req, res) => {
   try {
-    const { fileName, fileSize } = req.body;
+    const { fileName, fileSize, targetDuration } = req.body;
 
     if (!fileName || !fileSize) {
       return res.status(400).json({ error: "fileName and fileSize are required" });
+    }
+
+    let duration = 30;
+    if (targetDuration !== undefined) {
+      const parsed = parseInt(targetDuration, 10);
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        duration = Math.min(parsed, 365 * 5); // cap at ~5 years to avoid overflow
+      }
     }
 
     // Generate consistent fileId using filename and size
     const fileId = v4();
 
     // Calculate payment details with chunking info
-    const payment = calculateChunkedPayment(fileSize);
+    const payment = calculateChunkedPayment(fileSize, duration);
 
     res.json({
       fileId,
@@ -140,9 +148,20 @@ app.post("/api/generate-fileid", async (req, res) => {
 
 // Dashboard API endpoint
 // Returns all files with status information for dashboard
-app.get("/api/files", async (_req, res) => {
+// Accepts optional 'walletAddress' query parameter to filter by owner
+app.get("/api/files", async (req, res) => {
   try {
-    const files = await getAllFiles();
+    const { walletAddress } = req.query;
+
+    let files;
+    if (walletAddress && typeof walletAddress === 'string') {
+      // Filter by wallet address
+      files = await getFilesByOwner(walletAddress);
+    } else {
+      // Return all files
+      files = await getAllFiles();
+    }
+
     res.json(files);
   } catch (error) {
     console.error("Error fetching files:", error);

@@ -10,8 +10,9 @@ interface FileBalanceCardProps {
   fileName: string;
   fileSize: number; // in bytes
   createdAt: string;
+  permanentLink: string;
   ownerAddress?: string | null;
-  onTopUp: (balance: bigint) => void;
+  onTopUp: (balance: bigint, owner: string | null) => void;
   onView: () => void;
   onDownload: () => void;
 }
@@ -21,6 +22,7 @@ export default function FileBalanceCard({
   fileName,
   fileSize,
   createdAt,
+  permanentLink,
   onTopUp,
   ownerAddress,
   onView,
@@ -29,6 +31,7 @@ export default function FileBalanceCard({
   const [usdBalance, setUsdBalance] = useState<string>('...');
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   const [balanceWei, setBalanceWei] = useState<bigint>(BigInt(0));
+  const [contractOwner, setContractOwner] = useState<string | null>(null);
 
   // Fetch file balance from smart contract
   const { data: balanceData, isLoading } = useReadContract({
@@ -42,6 +45,16 @@ export default function FileBalanceCard({
     }
   });
 
+  const { data: ownerData } = useReadContract({
+    address: FOREVER_DATA_PAYMENTS_ADDRESS as `0x${string}`,
+    abi: FOREVER_DATA_PAYMENTS_ABI,
+    functionName: 'getFileOwner',
+    args: [fileId],
+    query: {
+      enabled: Boolean(fileId)
+    }
+  });
+
   useEffect(() => {
     if (typeof balanceData === 'bigint') {
       setBalanceWei(balanceData);
@@ -50,19 +63,27 @@ export default function FileBalanceCard({
     }
   }, [balanceData]);
 
+  useEffect(() => {
+    if (typeof ownerData === 'string' && ownerData !== '0x0000000000000000000000000000000000000000') {
+      setContractOwner(ownerData);
+    } else if (ownerAddress) {
+      setContractOwner(ownerAddress);
+    }
+  }, [ownerData, ownerAddress]);
+
   const balance = parseFloat(formatEther(balanceWei));
 
   useEffect(() => {
     if (balance > 0) {
-      // Calculate USD value
       ethToUsd(balance).then((usd) => setUsdBalance(formatUsd(usd)));
 
-      // Calculate days remaining
-      // Daily cost = (file size in MB) * 0.001 ETH per MB / 30 days
-      const fileSizeMB = fileSize / (1024 * 1024);
-      if (fileSizeMB > 0) {
-        const dailyCost = (fileSizeMB * 0.001) / 30;
-        const days = Math.floor(balance / dailyCost);
+      const bytesPerMb = 1024 * 1024;
+      const roundedSizeInMb = fileSize > 0 ? Math.max(1, Math.ceil(fileSize / bytesPerMb)) : 1;
+      const monthlyCostEth = roundedSizeInMb * 0.001; // Matches backend pricing
+      const dailyCostEth = monthlyCostEth / 30;
+
+      if (dailyCostEth > 0) {
+        const days = Math.floor(balance / dailyCostEth);
         setDaysRemaining(days);
       } else {
         setDaysRemaining(null);
@@ -73,10 +94,12 @@ export default function FileBalanceCard({
     }
   }, [balance, fileSize]);
 
+  const roundedDays = daysRemaining !== null ? Math.max(0, Math.floor(daysRemaining)) : daysRemaining;
+
   const getStatusColor = () => {
-    if (daysRemaining === null || isLoading) return 'gray';
-    if (daysRemaining < 3) return 'red';
-    if (daysRemaining < 7) return 'yellow';
+    if (roundedDays === null || isLoading) return 'gray';
+    if (roundedDays < 3) return 'red';
+    if (roundedDays < 7) return 'yellow';
     return 'green';
   };
 
@@ -98,6 +121,17 @@ export default function FileBalanceCard({
             {fileSizeMB} MB • Uploaded {new Date(createdAt).toLocaleDateString()}
           </p>
         </div>
+      </div>
+
+      {/* Permanent Link */}
+      <div className="rounded-lg bg-white/70 border border-dashed border-gray-300 px-3 py-2 text-xs text-gray-600 flex items-center justify-between space-x-2">
+        <span className="truncate font-mono">{permanentLink}</span>
+        <button
+          onClick={() => navigator.clipboard.writeText(permanentLink)}
+          className="px-2 py-1 text-xs font-medium text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 transition"
+        >
+          Copy
+        </button>
       </div>
 
       {/* Balance Info */}
@@ -125,26 +159,26 @@ export default function FileBalanceCard({
             statusColor === 'green' ? 'text-green-700' :
             'text-gray-700'
           }`}>
-            {isLoading ? '...' : daysRemaining !== null ? `~${daysRemaining} days` : 'N/A'}
+            {isLoading ? '...' : roundedDays !== null ? `~${roundedDays} days` : 'N/A'}
           </div>
         </div>
 
         {/* Warning Message */}
-        {daysRemaining !== null && daysRemaining < 7 && daysRemaining > 0 && (
+        {roundedDays !== null && roundedDays < 7 && roundedDays > 0 && (
           <div className="flex items-start space-x-2 pt-2 border-t border-current/20">
             <AlertTriangle className={`w-4 h-4 mt-0.5 ${
-              daysRemaining < 3 ? 'text-red-600' : 'text-yellow-600'
+              roundedDays < 3 ? 'text-red-600' : 'text-yellow-600'
             }`} />
             <p className={`text-xs ${
-              daysRemaining < 3 ? 'text-red-700' : 'text-yellow-700'
+              roundedDays < 3 ? 'text-red-700' : 'text-yellow-700'
             }`}>
-              {daysRemaining < 3 ? 'Critical: ' : 'Warning: '}
+              {roundedDays < 3 ? 'Critical: ' : 'Warning: '}
               Storage expires soon. Top up to extend.
             </p>
           </div>
         )}
 
-        {daysRemaining === 0 && (
+        {roundedDays === 0 && (
           <div className="flex items-start space-x-2 pt-2 border-t border-red-200">
             <AlertTriangle className="w-4 h-4 mt-0.5 text-red-600" />
             <p className="text-xs text-red-700 font-medium">
@@ -173,7 +207,7 @@ export default function FileBalanceCard({
           <span>View</span>
         </button>
         <button
-          onClick={() => onTopUp(balanceWei)}
+          onClick={() => onTopUp(balanceWei, contractOwner)}
           disabled={isLoading}
           className={`flex-1 flex items-center justify-center space-x-1 px-3 py-2 text-xs font-medium rounded-lg transition ${
             statusColor === 'red' || statusColor === 'yellow'

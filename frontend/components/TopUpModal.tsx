@@ -44,22 +44,25 @@ export default function TopUpModal({
   });
 
   // Check if connected wallet is the owner
-  const isOwner = address?.toLowerCase() === fileOwner?.toLowerCase();
+  const isOwner = !fileOwner || address?.toLowerCase() === fileOwner?.toLowerCase();
 
   // Calculate top-up amount
   const rawFileSizeMB = fileSize / (1024 * 1024);
-  const fileSizeMB = rawFileSizeMB > 0 ? rawFileSizeMB : 1;
+  const roundedFileSizeMB = rawFileSizeMB > 0 ? Math.max(1, Math.ceil(rawFileSizeMB)) : 1;
+  const displayFileSizeMB = rawFileSizeMB > 0 ? rawFileSizeMB : 0;
   const daysToAdd = useCustom ? parseInt(customDays) || 0 : selectedDays;
   const costPerMB = 0.001; // 0.001 ETH per MB for 30 days
   const dailyCostPerMB = costPerMB / 30;
-  const topUpAmount = fileSizeMB * dailyCostPerMB * daysToAdd;
+  const topUpAmount = roundedFileSizeMB * dailyCostPerMB * daysToAdd;
   const topUpAmountWei = parseEther(topUpAmount.toFixed(18));
 
   // Calculate new balance and days
   const currentBalanceEth = parseFloat(formatEther(currentBalance));
-  const currentDays = Math.floor(currentBalanceEth / (fileSizeMB * dailyCostPerMB));
+  const currentDaysFloat = currentBalanceEth / (roundedFileSizeMB * dailyCostPerMB);
+  const currentDays = Math.floor(currentDaysFloat);
   const newBalanceEth = currentBalanceEth + topUpAmount;
-  const newDays = Math.floor(newBalanceEth / (fileSizeMB * dailyCostPerMB));
+  const newDaysFloat = newBalanceEth / (roundedFileSizeMB * dailyCostPerMB);
+  const newDays = Math.floor(newDaysFloat);
 
   useEffect(() => {
     if (topUpAmount > 0) {
@@ -141,7 +144,7 @@ export default function TopUpModal({
             <div className="flex justify-between">
               <span>Size:</span>
               <span className="font-medium text-gray-900">
-                {rawFileSizeMB > 0 ? rawFileSizeMB.toFixed(2) : 'Unknown'} MB
+                {displayFileSizeMB > 0 ? displayFileSizeMB.toFixed(2) : 'Unknown'} MB
               </span>
             </div>
             <div className="flex justify-between">
@@ -193,7 +196,7 @@ export default function TopUpModal({
               >
                 <div className="font-medium">{option.label}</div>
                 <div className="text-xs text-gray-500 mt-1">
-                  +{(fileSizeMB * dailyCostPerMB * option.days).toFixed(6)} ETH
+                  +{(roundedFileSizeMB * dailyCostPerMB * option.days).toFixed(6)} ETH
                 </div>
               </button>
             ))}
