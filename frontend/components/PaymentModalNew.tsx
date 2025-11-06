@@ -10,6 +10,7 @@ import PaymentBreakdown from './PaymentBreakdown';
 import { PaymentSummary } from '../lib/types';
 import { ethToUsd, formatUsd } from '../lib/coinGecko';
 import { sepolia } from 'viem/chains';
+import { resolveChunkSize } from '../lib/chunking';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -20,11 +21,11 @@ interface PaymentModalProps {
   onPaymentSuccess: () => void;
   walletAddress?: string | null;
   chunkCount?: number;
+  chunkSize?: number;
   onQuoteChange?: (summary: PaymentSummary, days: number) => void;
 }
 
 const DURATION_OPTIONS = [
-  { days: 7, label: '7 days' },
   { days: 14, label: '14 days' },
   { days: 30, label: '30 days' },
   { days: 90, label: '90 days' },
@@ -42,11 +43,12 @@ export default function PaymentModal({
   onPaymentSuccess,
   walletAddress,
   chunkCount = 1,
+  chunkSize,
   onQuoteChange,
 }: PaymentModalProps) {
   const [error, setError] = useState<string | null>(null);
   const [usdTotal, setUsdTotal] = useState<string>('...');
-  const [selectedDays, setSelectedDays] = useState<number>(paymentData?.estimatedDuration ?? 30);
+  const [selectedDays, setSelectedDays] = useState<number>(paymentData?.estimatedDuration ?? 14);
   const [useCustom, setUseCustom] = useState(false);
   const [customDays, setCustomDays] = useState('');
   const [quote, setQuote] = useState<PaymentSummary | null>(paymentData);
@@ -119,7 +121,20 @@ export default function PaymentModal({
     return selectedDays;
   }, [useCustom, customDays, selectedDays]);
 
-  const chunkCountSafe = Math.max(1, chunkCount || 1);
+  const fallbackChunkSize = file ? resolveChunkSize(file.size) : undefined;
+  const chunkSizeSafe =
+    chunkSize ??
+    paymentData?.chunkSize ??
+    fallbackChunkSize ??
+    0;
+  const chunkCountSafe =
+    chunkCount ??
+    paymentData?.chunkCount ??
+    (chunkSizeSafe > 0 && file
+      ? Math.max(1, Math.ceil(file.size / chunkSizeSafe))
+      : 1);
+  const normalizedChunkCount = Math.max(1, chunkCountSafe);
+  const normalizedChunkSize = chunkSizeSafe > 0 ? chunkSizeSafe : undefined;
 
   const calculateQuoteForDays = React.useCallback(
     (days: number): PaymentSummary | null => {
@@ -127,7 +142,7 @@ export default function PaymentModal({
       const sizeInMbRounded = Math.max(1, Math.ceil(file.size / (1024 * 1024)));
       const storageNumerator = COST_PER_MB_30_DAYS * BigInt(sizeInMbRounded) * BigInt(days);
       const storageCost = (storageNumerator + BigInt(29)) / BigInt(30); // round up to avoid undercharging
-      const gasCost = BASE_GAS_PER_CHUNK * BigInt(chunkCountSafe);
+      const gasCost = BASE_GAS_PER_CHUNK * BigInt(normalizedChunkCount);
       const requiredAmount = storageCost + gasCost;
 
       return {
@@ -137,10 +152,11 @@ export default function PaymentModal({
           storageCost,
           gasCost
         },
-        chunkCount: chunkCountSafe
+        chunkCount: normalizedChunkCount,
+        chunkSize: normalizedChunkSize
       };
     },
-    [chunkCountSafe, file]
+    [file, normalizedChunkCount, normalizedChunkSize]
   );
 
   React.useEffect(() => {
@@ -153,7 +169,9 @@ export default function PaymentModal({
         prev.requiredAmount === newQuote.requiredAmount &&
         prev.estimatedDuration === newQuote.estimatedDuration &&
         prev.breakdown.storageCost === newQuote.breakdown.storageCost &&
-        prev.breakdown.gasCost === newQuote.breakdown.gasCost
+        prev.breakdown.gasCost === newQuote.breakdown.gasCost &&
+        prev.chunkCount === newQuote.chunkCount &&
+        prev.chunkSize === newQuote.chunkSize
       ) {
         return prev;
       }
@@ -276,11 +294,11 @@ export default function PaymentModal({
               </div>
 
               {/* Duration selection */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-gray-700">Choose Storage Duration</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {DURATION_OPTIONS.map((option) => (
-                    <button
+          <div className="space-y-3">
+            <h3 className="text-sm font-medium text-gray-700">Choose Storage Duration</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {DURATION_OPTIONS.map((option) => (
+                <button
                       key={option.days}
                       onClick={() => {
                         setSelectedDays(option.days);

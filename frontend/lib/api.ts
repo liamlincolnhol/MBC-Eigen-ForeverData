@@ -86,6 +86,7 @@ export async function uploadChunk(
   fileHash: string,
   isFirstChunk: boolean,
   isLastChunk: boolean,
+  chunkCapacity: number,
   onProgress?: (progress: number) => void,
   targetDuration?: number,
   walletAddress?: string | null
@@ -108,6 +109,9 @@ export async function uploadChunk(
     formData.append('fileHash', fileHash);
     formData.append('isFirstChunk', isFirstChunk.toString());
     formData.append('isLastChunk', isLastChunk.toString());
+    if (Number.isFinite(chunkCapacity) && chunkCapacity > 0) {
+      formData.append('chunkCapacity', chunkCapacity.toString());
+    }
     if (targetDuration && targetDuration > 0) {
       formData.append('targetDuration', targetDuration.toString());
     }
@@ -145,7 +149,7 @@ export async function getFileMetadata(fileId: string): Promise<FileMetadata> {
 }
 
 // Handle API errors and return user-friendly messages
-function handleApiError(error: any, defaultMessage: string): ApiError {
+function handleApiError(error: unknown, defaultMessage: string): ApiError {
   if (axios.isAxiosError(error)) {
     // Network/connection errors
     if (!error.response) {
@@ -201,9 +205,14 @@ function handleApiError(error: any, defaultMessage: string): ApiError {
   }
 
   // Non-axios errors
+  const fallbackMessage =
+    error instanceof Error && error.message
+      ? error.message
+      : defaultMessage;
+
   return {
-    message: defaultMessage,
+    message: fallbackMessage,
     code: 'UNKNOWN_ERROR',
-    details: error.message || error,
+    details: error,
   };
 }

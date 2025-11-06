@@ -30,121 +30,26 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
   const [connectedAddress, setConnectedAddress] = useState<string | null>(address ?? null);
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
 
+  const resetUploadState = useCallback(() => {
+    setSelectedFile(null);
+    setFileId(null);
+    setPaymentData(null);
+    setIsUploading(false);
+    setProgress(0);
+    setChunkProgress(null);
+    setWillBeChunked(false);
+    setChunkInfo(null);
+    setSelectedDuration(null);
+  }, []);
+
   useEffect(() => {
     setConnectedAddress(address ?? null);
   }, [address]);
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    if (acceptedFiles.length === 0) return;
+  
 
-    const file = acceptedFiles[0];
-    setSelectedFile(file);
-    setError(null);
 
-    // Check wallet connection (skip if in testing mode)
-    if (!SKIP_PAYMENT_CHECKS && !isConnected) {
-      setError('Please connect your wallet first');
-      return;
-    }
-
-    // Validate file size limits
-    const MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024; // 1 GB
-    if (file.size > MAX_FILE_SIZE) {
-      setError(`File too large: ${(file.size / 1024 / 1024 / 1024).toFixed(2)} GB (max: 1 GB)`);
-      return;
-    }
-
-    if (file.size === 0) {
-      setError('Cannot upload empty file');
-      return;
-    }
-
-    try {
-      // Generate fileId and payment details
-      const fileIdData = await generateFileId(file.name, file.size);
-      const generatedFileId = fileIdData.fileId;
-      setFileId(generatedFileId);
-      setPaymentData({
-        requiredAmount: BigInt(fileIdData.payment.requiredAmount),
-        estimatedDuration: fileIdData.payment.estimatedDuration,
-        breakdown: {
-          storageCost: BigInt(fileIdData.payment.breakdown.storageCost),
-          gasCost: BigInt(fileIdData.payment.breakdown.gasCost)
-        },
-        chunkCount: fileIdData.chunkingInfo?.totalChunks
-      });
-      setSelectedDuration(fileIdData.payment.estimatedDuration);
-
-      // Check if file will be chunked
-      const isChunked = fileIdData.chunkingInfo?.willBeChunked || false;
-      setWillBeChunked(isChunked);
-      setChunkInfo({
-        totalChunks: fileIdData.chunkingInfo?.totalChunks ?? 1,
-        chunkSize: fileIdData.chunkingInfo?.chunkSize ?? 0
-      });
-
-      // Skip payment modal in testing mode
-      if (SKIP_PAYMENT_CHECKS) {
-        setIsUploading(true);
-        setProgress(0);
-        setChunkProgress(null);
-
-        // Decide upload strategy based on file size
-        if (isChunked) {
-          await handleChunkedUpload(file, generatedFileId, fileIdData.payment.estimatedDuration);
-        } else {
-          await handleSingleUpload(file, generatedFileId, fileIdData.payment.estimatedDuration);
-        }
-      } else {
-        // Show payment modal in production mode
-        setShowPaymentModal(true);
-      }
-    } catch (err) {
-      console.error('Failed to upload file:', err);
-      const apiError = err as ApiError;
-      setError(apiError.message || 'Failed to upload file. Please try again.');
-      setIsUploading(false);
-      setProgress(0);
-      setChunkProgress(null);
-    }
-  }, [isConnected]);
-
-  const handlePaymentSuccess = async () => {
-    if (!selectedFile || !fileId) return;
-
-    setShowPaymentModal(false);
-    setIsUploading(true);
-    setProgress(0);
-    setChunkProgress(null);
-    setError(null);
-
-    try {
-      // Decide upload strategy based on file size
-      if (willBeChunked) {
-        await handleChunkedUpload(
-          selectedFile,
-          fileId,
-          selectedDuration ?? paymentData?.estimatedDuration ?? 30
-        );
-      } else {
-        await handleSingleUpload(
-          selectedFile,
-          fileId,
-          selectedDuration ?? paymentData?.estimatedDuration ?? 30
-        );
-      }
-
-      // Note: onUploadSuccess will be called from the respective handlers
-    } catch (err) {
-      const apiError = err as ApiError;
-      setError(apiError.message);
-      setIsUploading(false);
-      setProgress(0);
-      setChunkProgress(null);
-    }
-  };
-
-  const handleSingleUpload = async (file: File, fileId: string, targetDuration: number) => {
+  const handleSingleUpload = useCallback(async (file: File, fileId: string, targetDuration: number) => {
     const response = await uploadFile(
       file,
       fileId,
@@ -157,11 +62,15 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
 
     onUploadSuccess(response, file);
     resetUploadState();
-  };
+  }, [connectedAddress, onUploadSuccess, resetUploadState]);
 
-  const handleChunkedUpload = async (file: File, fileId: string, targetDuration: number) => {
+  const handleChunkedUpload = useCallback(async (file: File, fileId: string, targetDuration: number) => {
     // Split file into chunks
-    const chunkingResult = await chunkFile(file, fileId);
+    const chunkingResult = await chunkFile(
+      file,
+      fileId,
+      chunkInfo?.chunkSize
+    );
 
     if (!chunkingResult.willBeChunked || chunkingResult.chunks.length === 0) {
       throw new Error('File chunking failed');
@@ -189,6 +98,7 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
         chunkingResult.fileHash,
         chunk.isFirstChunk,
         chunk.isLastChunk,
+        chunk.chunkCapacity,
         (chunkProgressValue) => {
           // Calculate overall progress including this chunk's progress
           const chunkBytesUploaded = bytesUploaded + (chunk.chunkSize * chunkProgressValue / 100);
@@ -223,19 +133,116 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
 
     onUploadSuccess(successResponse, file);
     resetUploadState();
-  };
+  }, [chunkInfo, connectedAddress, onUploadSuccess, resetUploadState]);
 
-  const resetUploadState = () => {
-    setSelectedFile(null);
-    setFileId(null);
-    setPaymentData(null);
-    setIsUploading(false);
+  const handlePaymentSuccess = useCallback(async () => {
+    if (!selectedFile || !fileId) return;
+
+    setShowPaymentModal(false);
+    setIsUploading(true);
     setProgress(0);
     setChunkProgress(null);
-    setWillBeChunked(false);
-    setChunkInfo(null);
-    setSelectedDuration(null);
-  };
+    setError(null);
+
+    try {
+      if (willBeChunked) {
+        await handleChunkedUpload(
+          selectedFile,
+          fileId,
+          selectedDuration ?? paymentData?.estimatedDuration ?? 14
+        );
+      } else {
+        await handleSingleUpload(
+          selectedFile,
+          fileId,
+          selectedDuration ?? paymentData?.estimatedDuration ?? 14
+        );
+      }
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.message);
+      setIsUploading(false);
+      setProgress(0);
+      setChunkProgress(null);
+    }
+  }, [
+    fileId,
+    handleChunkedUpload,
+    handleSingleUpload,
+    paymentData,
+    selectedDuration,
+    selectedFile,
+    willBeChunked
+  ]);
+
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
+
+    const file = acceptedFiles[0];
+    setSelectedFile(file);
+    setError(null);
+
+    if (!SKIP_PAYMENT_CHECKS && !isConnected) {
+      setError('Please connect your wallet first');
+      return;
+    }
+
+    const MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024; // 1 GB
+    if (file.size > MAX_FILE_SIZE) {
+      setError(`File too large: ${(file.size / 1024 / 1024 / 1024).toFixed(2)} GB (max: 1 GB)`);
+      return;
+    }
+
+    if (file.size === 0) {
+      setError('Cannot upload empty file');
+      return;
+    }
+
+    try {
+      const fileIdData = await generateFileId(file.name, file.size);
+      const generatedFileId = fileIdData.fileId;
+      setFileId(generatedFileId);
+      setPaymentData({
+        requiredAmount: BigInt(fileIdData.payment.requiredAmount),
+        estimatedDuration: fileIdData.payment.estimatedDuration,
+        breakdown: {
+          storageCost: BigInt(fileIdData.payment.breakdown.storageCost),
+          gasCost: BigInt(fileIdData.payment.breakdown.gasCost)
+        },
+        chunkCount: fileIdData.chunkingInfo?.totalChunks,
+        chunkSize: fileIdData.chunkingInfo?.chunkSize
+      });
+      setSelectedDuration(fileIdData.payment.estimatedDuration);
+
+      const isChunked = fileIdData.chunkingInfo?.willBeChunked || false;
+      setWillBeChunked(isChunked);
+      setChunkInfo({
+        totalChunks: fileIdData.chunkingInfo?.totalChunks ?? 1,
+        chunkSize: fileIdData.chunkingInfo?.chunkSize ?? 0
+      });
+
+      if (SKIP_PAYMENT_CHECKS) {
+        setIsUploading(true);
+        setProgress(0);
+        setChunkProgress(null);
+
+        if (isChunked) {
+          await handleChunkedUpload(file, generatedFileId, fileIdData.payment.estimatedDuration);
+        } else {
+          await handleSingleUpload(file, generatedFileId, fileIdData.payment.estimatedDuration);
+        }
+      } else {
+        setShowPaymentModal(true);
+      }
+    } catch (err) {
+      console.error('Failed to upload file:', err);
+      const apiError = err as ApiError;
+      setError(apiError.message || 'Failed to upload file. Please try again.');
+      setIsUploading(false);
+      setProgress(0);
+      setChunkProgress(null);
+    }
+  }, [handleChunkedUpload, handleSingleUpload, isConnected]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -353,6 +360,7 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
           paymentData={paymentData}
           walletAddress={connectedAddress}
           chunkCount={chunkInfo?.totalChunks ?? 1}
+          chunkSize={chunkInfo?.chunkSize ?? paymentData?.chunkSize}
           onQuoteChange={(quote, days) => {
             setPaymentData((prev) => {
               if (
@@ -360,7 +368,9 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
                 prev.requiredAmount === quote.requiredAmount &&
                 prev.estimatedDuration === quote.estimatedDuration &&
                 prev.breakdown.storageCost === quote.breakdown.storageCost &&
-                prev.breakdown.gasCost === quote.breakdown.gasCost
+                prev.breakdown.gasCost === quote.breakdown.gasCost &&
+                prev.chunkCount === quote.chunkCount &&
+                prev.chunkSize === quote.chunkSize
               ) {
                 return prev;
               }

@@ -1,18 +1,26 @@
 /**
  * File Chunking Utilities
  *
- * Handles splitting large files into chunks for upload to EigenDA.
- * Files larger than CHUNK_SIZE (4 MiB) are split into multiple chunks.
- * Each chunk is uploaded separately to EigenDA proxy (8 MiB limit).
+ * Handles splitting large files into EigenDA blob-sized chunks.
+ * Uses the same greedy bucket selection as the backend to maximise blob utilisation.
  */
 
-// Constants matching backend configuration
-export const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB - stays within 8 MiB proxy limit with margin
+const BYTES_PER_MEBIBYTE = 1024 * 1024;
+
+export const EIGENDA_BLOB_BUCKETS_MIB = [1, 2, 4, 8, 16] as const;
+export const EIGENDA_BLOB_BUCKETS_BYTES = EIGENDA_BLOB_BUCKETS_MIB.map(
+  size => size * BYTES_PER_MEBIBYTE
+);
+
+const MIN_CHUNK_SIZE = EIGENDA_BLOB_BUCKETS_BYTES[0];
+const MAX_CHUNK_SIZE =
+  EIGENDA_BLOB_BUCKETS_BYTES[EIGENDA_BLOB_BUCKETS_BYTES.length - 1];
 
 export interface ChunkInfo {
   chunkIndex: number;        // 0-based chunk index
   chunkData: Blob;           // Actual chunk data
-  chunkSize: number;         // Size of this chunk in bytes
+  chunkSize: number;         // Size of this chunk in bytes (actual payload)
+  chunkCapacity: number;     // EigenDA blob bucket size in bytes for this chunk
   chunkHash: string;         // SHA256 hash of chunk for integrity
   isFirstChunk: boolean;     // Flag for first chunk
   isLastChunk: boolean;      // Flag for last chunk
@@ -40,18 +48,53 @@ async function calculateHash(blob: Blob): Promise<string> {
 }
 
 /**
+ * Greedily resolve the EigenDA blob bucket size to use for a given file size.
+ * Optionally accepts a preferred chunk size (from the backend) and validates it.
+ */
+export function resolveChunkSize(
+  fileSize: number,
+  preferredChunkSize?: number
+): number {
+  if (
+    typeof preferredChunkSize === 'number' &&
+    EIGENDA_BLOB_BUCKETS_BYTES.includes(preferredChunkSize)
+  ) {
+    return preferredChunkSize;
+  }
+
+  if (!Number.isFinite(fileSize) || fileSize <= 0) {
+    return MIN_CHUNK_SIZE;
+  }
+
+  for (const bucket of EIGENDA_BLOB_BUCKETS_BYTES) {
+    if (fileSize <= bucket) {
+      return bucket;
+    }
+  }
+
+  return MAX_CHUNK_SIZE;
+}
+
+/**
  * Determine if a file needs to be chunked
  */
-export function shouldChunkFile(fileSize: number): boolean {
-  return fileSize > CHUNK_SIZE;
+export function shouldChunkFile(
+  fileSize: number,
+  preferredChunkSize?: number
+): boolean {
+  return calculateChunkCount(fileSize, preferredChunkSize) > 1;
 }
 
 /**
  * Calculate the number of chunks needed for a file
  */
-export function calculateChunkCount(fileSize: number): number {
-  if (fileSize === 0) return 0;
-  return Math.ceil(fileSize / CHUNK_SIZE);
+export function calculateChunkCount(
+  fileSize: number,
+  preferredChunkSize?: number
+): number {
+  if (fileSize <= 0) return 0;
+  const chunkSize = resolveChunkSize(fileSize, preferredChunkSize);
+  return Math.max(1, Math.ceil(fileSize / chunkSize));
 }
 
 /**
@@ -63,10 +106,13 @@ export function calculateChunkCount(fileSize: number): number {
  */
 export async function chunkFile(
   file: File,
-  fileId: string
+  fileId: string,
+  preferredChunkSize?: number
 ): Promise<FileChunkingResult> {
   const totalSize = file.size;
-  const willBeChunked = shouldChunkFile(totalSize);
+  const targetChunkSize = resolveChunkSize(totalSize, preferredChunkSize);
+  const totalChunks = calculateChunkCount(totalSize, targetChunkSize);
+  const willBeChunked = totalChunks > 1;
 
   // Calculate hash of entire file
   const fileHash = await calculateHash(file);
@@ -84,14 +130,13 @@ export async function chunkFile(
   }
 
   // Split file into chunks
-  const totalChunks = calculateChunkCount(totalSize);
   const chunks: ChunkInfo[] = [];
 
   for (let i = 0; i < totalChunks; i++) {
-    const start = i * CHUNK_SIZE;
-    const end = Math.min(totalSize, start + CHUNK_SIZE);
+    const start = i * targetChunkSize;
+    const end = Math.min(totalSize, start + targetChunkSize);
     const chunkBlob = file.slice(start, end);
-    const chunkSize = end - start;
+    const chunkBytes = end - start;
 
     // Calculate hash for this chunk
     const chunkHash = await calculateHash(chunkBlob);
@@ -99,7 +144,8 @@ export async function chunkFile(
     chunks.push({
       chunkIndex: i,
       chunkData: chunkBlob,
-      chunkSize,
+      chunkSize: chunkBytes,
+      chunkCapacity: targetChunkSize,
       chunkHash,
       isFirstChunk: i === 0,
       isLastChunk: i === totalChunks - 1,

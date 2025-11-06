@@ -8,12 +8,13 @@ interface PaymentBreakdownProps {
   paymentData: {
     requiredAmount: bigint;
     estimatedDuration: number;
-    breakdown: {
-      storageCost: bigint;
-      gasCost: bigint;
-    };
-    chunkCount?: number;
+  breakdown: {
+    storageCost: bigint;
+    gasCost: bigint;
   };
+  chunkCount?: number;
+  chunkSize?: number;
+};
 }
 
 export default function PaymentBreakdown({ fileSize, paymentData }: PaymentBreakdownProps) {
@@ -25,6 +26,15 @@ export default function PaymentBreakdown({ fileSize, paymentData }: PaymentBreak
   const storageEth = parseFloat(formatEther(paymentData.breakdown.storageCost));
   const gasEth = parseFloat(formatEther(paymentData.breakdown.gasCost));
   const totalEth = parseFloat(formatEther(paymentData.requiredAmount));
+  const chunkSizeMiB = paymentData.chunkSize
+    ? paymentData.chunkSize / (1024 * 1024)
+    : null;
+  const formattedChunkSize = chunkSizeMiB !== null
+    ? (Number.isInteger(chunkSizeMiB) ? chunkSizeMiB.toFixed(0) : chunkSizeMiB.toFixed(2))
+    : null;
+  const chunkLabel = paymentData.chunkCount && paymentData.chunkCount > 1
+    ? `${paymentData.chunkCount} chunks`
+    : '1 transaction';
 
   useEffect(() => {
     // Fetch USD conversions
@@ -64,10 +74,13 @@ export default function PaymentBreakdown({ fileSize, paymentData }: PaymentBreak
           <span>File Size:</span>
           <span className="font-medium text-gray-800">{fileSizeMB.toFixed(2)} MB</span>
         </div>
-        {paymentData.chunkCount && paymentData.chunkCount > 1 && (
+        {paymentData.chunkCount && paymentData.chunkCount > 0 && paymentData.chunkSize && (
           <div className="flex justify-between">
             <span>Chunks:</span>
-            <span className="font-medium text-gray-800">{paymentData.chunkCount} chunks (4 MiB each)</span>
+            <span className="font-medium text-gray-800">
+              {paymentData.chunkCount} {paymentData.chunkCount === 1 ? 'chunk' : 'chunks'}
+              {formattedChunkSize ? ` (${formattedChunkSize} MiB target)` : ''}
+            </span>
           </div>
         )}
       </div>
@@ -99,7 +112,9 @@ export default function PaymentBreakdown({ fileSize, paymentData }: PaymentBreak
                   <div className="space-y-1">
                     <p className="font-medium">Gas fees cover blockchain transaction costs.</p>
                     {paymentData.chunkCount && paymentData.chunkCount > 1 ? (
-                      <p>Your file requires {paymentData.chunkCount} separate transactions to EigenDA ({paymentData.chunkCount} chunks × 0.0001 ETH = {gasEth.toFixed(4)} ETH)</p>
+                      <p>
+                        Your file requires {paymentData.chunkCount} separate transactions to EigenDA ({paymentData.chunkCount} {paymentData.chunkCount === 1 ? 'chunk' : 'chunks'} × 0.0001 ETH = {gasEth.toFixed(4)} ETH)
+                      </p>
                     ) : (
                       <p>Single transaction to EigenDA (0.0001 ETH)</p>
                     )}
@@ -116,7 +131,7 @@ export default function PaymentBreakdown({ fileSize, paymentData }: PaymentBreak
             </div>
           </div>
           <div className="text-xs text-gray-500">
-            {paymentData.chunkCount ? `${paymentData.chunkCount} chunks` : '1 transaction'} × 0.0001 ETH
+            {chunkLabel} × 0.0001 ETH
           </div>
         </div>
       </div>

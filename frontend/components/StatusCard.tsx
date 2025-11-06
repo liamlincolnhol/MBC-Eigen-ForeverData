@@ -13,17 +13,17 @@ interface StatusCardProps {
 }
 
 export default function StatusCard({ metadata }: StatusCardProps) {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [, forceRerender] = useState(() => Date.now());
   const fileStatus = getFileStatus(metadata.expiryDate);
 
   // Update countdown timer every second
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(new Date());
+      forceRerender(Date.now());
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [forceRerender]);
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">

@@ -110,7 +110,7 @@ app.post("/api/generate-fileid", async (req, res) => {
       return res.status(400).json({ error: "fileName and fileSize are required" });
     }
 
-    let duration = 30;
+    let duration = 14;
     if (targetDuration !== undefined) {
       const parsed = parseInt(targetDuration, 10);
       if (!Number.isNaN(parsed) && parsed > 0) {

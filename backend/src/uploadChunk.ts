@@ -6,10 +6,14 @@ import { addChunkToFile, initializeChunkedFile, getFileMetadata, updatePaymentSt
 import { eigenDAConfig } from "./config.js";
 import { calculateExpiry } from "./utils.js";
 import type { ChunkMetadata } from "./types/chunking.js";
+import {
+  MIN_CHUNK_SIZE_BYTES,
+  resolveChunkSize,
+  isSupportedChunkSize
+} from "./utils/chunking.js";
 
-const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB - stays within 8 MiB EigenDA proxy limit
 const MAX_FILE_SIZE = 1 * 1024 * 1024 * 1024; // 1 GB maximum file size
-const MAX_CHUNKS = Math.ceil(MAX_FILE_SIZE / CHUNK_SIZE); // 256 chunks for 1 GB with 4 MiB chunks
+const MAX_CHUNKS = Math.ceil(MAX_FILE_SIZE / MIN_CHUNK_SIZE_BYTES); // Maximum chunk count using smallest bucket
 
 /**
  * Upload a chunk to EigenDA and return the certificate
@@ -125,20 +129,20 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
   console.log(`\nProcessing chunk ${chunkIdx + 1}/${total} for file ${fileId}`);
   console.log(`Actual chunk size: ${actualChunkSize} bytes`);
 
-  // Validate chunk size (should be <= 4 MiB)
-  if (actualChunkSize > CHUNK_SIZE) {
-    return res.status(400).json({
-      error: `Chunk too large: ${actualChunkSize} bytes (max: ${CHUNK_SIZE})`
-    });
-  }
+  // Parse the declared chunk capacity (EigenDA blob bucket size)
+  const rawChunkCapacity = req.body.chunkCapacity ?? req.body.chunkSize;
+  const declaredChunkCapacity = rawChunkCapacity !== undefined
+    ? parseInt(rawChunkCapacity, 10)
+    : NaN;
 
+  // Prevent empty chunks
   if (actualChunkSize === 0) {
     return res.status(400).json({
       error: "Cannot upload empty chunk"
     });
   }
 
-  let duration = 30;
+  let duration = 14;
   if (targetDuration !== undefined) {
     const parsedDuration = parseInt(targetDuration, 10);
     if (!Number.isNaN(parsedDuration) && parsedDuration > 0) {
@@ -148,9 +152,14 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
 
   try {
     // === CHUNK ORDER VALIDATION ===
-    // If not first chunk, verify file exists and validate chunk order
+    let existingFile: any | null = null;
+    let effectiveChunkSize =
+      Number.isFinite(declaredChunkCapacity) && declaredChunkCapacity > 0
+        ? declaredChunkCapacity
+        : undefined;
+
     if (!isFirst) {
-      const existingFile = await getFileMetadata(fileId);
+      existingFile = await getFileMetadata(fileId);
 
       if (!existingFile) {
         return res.status(400).json({
@@ -166,6 +175,9 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
       }
 
       const existingChunks = existingFile.chunks || [];
+      if (existingFile.chunkSize) {
+        effectiveChunkSize = existingFile.chunkSize;
+      }
 
       // Check for duplicate chunk index
       if (existingChunks.some((c: ChunkMetadata) => c.chunkIndex === chunkIdx)) {
@@ -181,6 +193,40 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
           error: `Expected chunk ${expectedIndex}, got ${chunkIdx}. Chunks must be uploaded sequentially.`
         });
       }
+
+      if (
+        Number.isFinite(declaredChunkCapacity) &&
+        isSupportedChunkSize(declaredChunkCapacity) &&
+        existingFile.chunkSize &&
+        existingFile.chunkSize !== declaredChunkCapacity
+      ) {
+        return res.status(400).json({
+          error: `Chunk capacity mismatch: expected ${existingFile.chunkSize}, received ${declaredChunkCapacity}`
+        });
+      }
+    }
+
+    if (!effectiveChunkSize || !isSupportedChunkSize(effectiveChunkSize)) {
+      const estimatedTotalSize =
+        isFirst && total > 0
+          ? Math.min(
+              MAX_FILE_SIZE,
+              actualChunkSize + (total - 1) * Math.max(actualChunkSize, MIN_CHUNK_SIZE_BYTES)
+            )
+          : actualChunkSize;
+      effectiveChunkSize = resolveChunkSize(estimatedTotalSize);
+    }
+
+    if (!isSupportedChunkSize(effectiveChunkSize)) {
+      return res.status(400).json({
+        error: `Unsupported chunk capacity ${effectiveChunkSize}`
+      });
+    }
+
+    if (actualChunkSize > effectiveChunkSize) {
+      return res.status(400).json({
+        error: `Chunk too large: ${actualChunkSize} bytes (max: ${effectiveChunkSize})`
+      });
     }
 
     // If this is the first chunk, initialize the file record
@@ -194,7 +240,7 @@ export async function handleChunkUpload(req: express.Request, res: express.Respo
         sanitizedFileName,
         fileHash,
         0, // Will be calculated from sum of chunks
-        CHUNK_SIZE,
+        effectiveChunkSize,
         expiry,
         normalizedWalletAddress ? 'paid' : 'pending',
         normalizedWalletAddress

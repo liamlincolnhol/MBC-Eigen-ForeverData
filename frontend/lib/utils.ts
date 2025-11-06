@@ -23,7 +23,7 @@ export function getTimeUntilExpiry(expiryDate: string): string {
     }
     
     return formatDistanceToNow(expiry, { addSuffix: true });
-  } catch (error) {
+  } catch {
     return 'Invalid date';
   }
 }
@@ -40,7 +40,7 @@ export function getStatusLevel(expiryDate: string): StatusLevel {
     if (daysRemaining <= 3) return 'critical';
     if (daysRemaining <= 7) return 'warning';
     return 'healthy';
-  } catch (error) {
+  } catch {
     return 'critical';
   }
 }
@@ -57,7 +57,7 @@ export function getFileStatus(expiryDate: string): FileStatus {
       timeUntilExpiry: getTimeUntilExpiry(expiryDate),
       daysRemaining: Math.max(0, daysRemaining),
     };
-  } catch (error) {
+  } catch {
     return {
       level: 'critical',
       timeUntilExpiry: 'Invalid date',
@@ -78,7 +78,7 @@ export function formatDisplayDate(dateString: string): string {
       minute: '2-digit',
       hour12: true,
     });
-  } catch (error) {
+  } catch {
     return 'Invalid date';
   }
 }
@@ -88,7 +88,7 @@ export function formatRelativeTime(dateString: string): string {
   try {
     const date = parseISO(dateString);
     return formatDistanceToNow(date, { addSuffix: true });
-  } catch (error) {
+  } catch {
     return 'Invalid date';
   }
 }

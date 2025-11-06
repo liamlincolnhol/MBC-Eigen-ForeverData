@@ -36,7 +36,7 @@ export interface FileMetadata {
 export interface ApiError {
   message: string;
   code?: string;
-  details?: any;
+  details?: unknown;
 }
 
 // UI State Types
@@ -63,4 +63,5 @@ export interface PaymentSummary {
     gasCost: bigint;
   };
   chunkCount?: number;
+  chunkSize?: number;
 }

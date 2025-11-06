@@ -1,9 +1,9 @@
 import { ethers } from 'ethers';
 import { getContractInstance } from './contract.js';
+import { calculateChunkCount, resolveChunkSize } from './chunking.js';
 
 // Base gas cost for EigenDA operations (rough estimate)
 const BASE_GAS_COST = ethers.parseEther('0.0001');
-const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB in bytes - matches chunking configuration
 
 export interface PaymentDetails {
     requiredAmount: bigint;  // in Wei
@@ -25,16 +25,18 @@ export interface ChunkedPaymentDetails extends PaymentDetails {
  * @param fileSize File size in bytes
  * @param targetDuration Target duration in days (optional, defaults to 30)
  */
-export function calculateRequiredPayment(fileSize: number, targetDuration: number = 30): PaymentDetails {
+export function calculateRequiredPayment(fileSize: number, targetDuration: number = 14): PaymentDetails {
     const roundedDays = Math.max(1, Math.ceil(targetDuration));
     const sizeInMB = fileSize / (1024 * 1024);
     const roundedSizeInMB = Math.max(1, Math.ceil(sizeInMB));
+    const chunkSize = resolveChunkSize(fileSize);
+    const chunkCount = calculateChunkCount(fileSize, chunkSize);
 
     const costPerMb30Days = ethers.parseEther('0.001');
     const numerator = costPerMb30Days * BigInt(roundedSizeInMB) * BigInt(roundedDays);
     const storageCost = (numerator + BigInt(29)) / BigInt(30); // round up to avoid undercharging
 
-    const totalGasCost = BASE_GAS_COST;
+    const totalGasCost = BASE_GAS_COST * BigInt(Math.max(1, chunkCount));
     const requiredAmount = storageCost + totalGasCost;
 
     return {
@@ -53,9 +55,10 @@ export function calculateRequiredPayment(fileSize: number, targetDuration: numbe
  * @param targetDuration Target duration in days (optional, defaults to 30)
  * @returns Payment details including chunk count and chunking info
  */
-export function calculateChunkedPayment(fileSize: number, targetDuration: number = 30): ChunkedPaymentDetails {
-    const isChunked = fileSize > CHUNK_SIZE;
-    const chunkCount = isChunked ? Math.ceil(fileSize / CHUNK_SIZE) : 1;
+export function calculateChunkedPayment(fileSize: number, targetDuration: number = 14): ChunkedPaymentDetails {
+    const chunkSize = resolveChunkSize(fileSize);
+    const chunkCount = calculateChunkCount(fileSize, chunkSize);
+    const isChunked = chunkCount > 1;
 
     const roundedDays = Math.max(1, Math.ceil(targetDuration));
     const sizeInMB = fileSize / (1024 * 1024);
@@ -76,7 +79,7 @@ export function calculateChunkedPayment(fileSize: number, targetDuration: number
             gasCost: totalGasCost
         },
         chunkCount,
-        chunkSize: CHUNK_SIZE,
+        chunkSize,
         isChunked
     };
 }

@@ -32,7 +32,7 @@ export async function handleUpload(req: express.Request, res: express.Response) 
   const walletAddress = walletAddressRaw ? String(walletAddressRaw).toLowerCase() : undefined;
 
   // Determine requested storage duration
-  let targetDuration = 30;
+  let targetDuration = 14;
   if (req.body.targetDuration !== undefined) {
     const parsedDuration = parseInt(req.body.targetDuration, 10);
     if (!Number.isNaN(parsedDuration) && parsedDuration > 0) {
