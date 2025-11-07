@@ -83,33 +83,33 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
     <>
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40"
           onClick={onClose}
         />
       )}
 
       <div
-        className={`fixed top-0 right-0 w-full sm:w-3/5 lg:w-1/2 h-full bg-white rounded-l-2xl shadow-2xl z-50 transition-all duration-500 ease-out flex flex-col ${
+        className={`fixed top-0 right-0 w-full sm:w-[70%] lg:w-[55%] h-full bg-[#050915] text-white rounded-l-[36px] shadow-2xl z-50 transition-all duration-500 ease-out flex flex-col border-l border-white/10 ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
-          <div className="flex flex-col">
-            <span className="text-sm text-gray-500">ForeverData</span>
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
-              <FileText className="w-5 h-5" />
+        <div className="flex items-center justify-between px-8 py-6 border-b border-white/10 flex-shrink-0">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs uppercase tracking-[0.4em] text-white/40">ForeverData</span>
+            <h2 className="text-2xl font-semibold text-white flex items-center space-x-2">
+              <FileText className="w-5 h-5 text-sky-200" />
               <span>My Files</span>
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 rounded-full border border-white/10 hover:bg-white/10 transition-colors"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5 text-white/70" />
           </button>
         </div>
 
-        <div className="px-6 pt-4 pb-2 flex items-center justify-between border-b border-gray-100 text-xs text-gray-500">
+        <div className="px-8 pt-4 pb-3 flex items-center justify-between border-b border-white/10 text-xs text-white/60">
           {shortAddress ? (
             <span className="font-mono">Connected: {shortAddress}</span>
           ) : (
@@ -118,32 +118,32 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
           <button
             onClick={() => fetchFiles()}
             disabled={!isConnected || loading || !address}
-            className="inline-flex items-center space-x-1 px-2 py-1 rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-full border border-white/20 text-white/80 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <RefreshCcw className="w-3 h-3" />
             <span>Refresh</span>
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0 p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto min-h-0 p-8 space-y-4">
           {!isConnected ? (
-            <div className="p-6 text-center text-gray-500 bg-gray-50 rounded-xl border border-gray-200">
+            <div className="p-6 text-center text-white/60 bg-white/5 rounded-2xl border border-white/10">
               <p>Connect your wallet to see the files funded by this address.</p>
             </div>
           ) : loading ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+            <div className="flex flex-col items-center justify-center py-12 text-white/60">
               <Loader2 className="w-6 h-6 animate-spin mb-2" />
               <p>Loading your files...</p>
             </div>
           ) : error ? (
-            <div className="p-6 text-center text-red-600 bg-red-50 border border-red-200 rounded-xl">
-              <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+            <div className="p-6 text-center text-red-200 bg-red-500/10 border border-red-500/30 rounded-2xl">
+              <AlertCircle className="w-8 h-8 mx-auto mb-2 text-red-300" />
               <p>{error}</p>
             </div>
           ) : files.length === 0 ? (
-            <div className="p-6 text-center text-gray-500 bg-gray-50 rounded-xl border border-gray-200">
+            <div className="p-6 text-center text-white/60 bg-white/5 rounded-2xl border border-white/10">
               <p>No uploads found for this wallet yet.</p>
-              <p className="text-xs mt-2">
+              <p className="text-xs mt-2 text-white/40">
                 Payment records sync automatically once your on-chain deposit is detected.
               </p>
             </div>

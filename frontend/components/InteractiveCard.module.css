@@ -1,0 +1,46 @@
+.container {
+  width: 100%;
+  perspective: 1400px;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  border-radius: 16px;
+  transform-style: preserve-3d;
+  transition:
+    transform 200ms ease,
+    box-shadow 250ms ease;
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg))
+    scale(var(--card-scale, 1));
+  will-change: transform;
+  box-shadow:
+    rgba(3, 7, 18, 0.25) 0px 25px 85px -35px,
+    rgba(15, 23, 42, 0.2) 0px 15px 40px -25px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.card[data-active='true'] {
+  box-shadow:
+    rgba(59, 130, 246, 0.35) 0px 35px 85px -35px,
+    rgba(99, 102, 241, 0.35) 0px 25px 60px -30px,
+    rgba(3, 7, 18, 0.55) 0px 35px 65px -45px;
+  border-color: rgba(147, 197, 253, 0.35);
+}
+
+.glow {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at var(--glowX, 50%) var(--glowY, 50%),
+    rgba(147, 197, 253, 0.5),
+    rgba(129, 140, 248, 0.35) 25%,
+    rgba(15, 23, 42, 0) 60%
+  );
+  opacity: var(--glowOpacity, 0);
+  transition: opacity 220ms ease;
+  mix-blend-mode: screen;
+}

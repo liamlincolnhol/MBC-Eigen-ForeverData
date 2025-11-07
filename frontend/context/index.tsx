@@ -30,6 +30,8 @@ const modal = createAppKit({
   defaultNetwork: sepolia,
   metadata: metadata,
   customRpcUrls: appKitCustomRpcUrls,
+  enableNetworkSwitch: false,
+  enableReconnect: false,
   features: {
     analytics: true // Optional - defaults to your Cloud configuration
   }
