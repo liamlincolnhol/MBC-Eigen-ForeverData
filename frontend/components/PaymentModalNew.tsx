@@ -238,113 +238,111 @@ export default function PaymentModal({
   const payDisabled = isProcessing || resolvedDays <= 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-8 space-y-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[32px] border border-white/10 bg-gradient-to-br from-slate-950/95 via-slate-900/80 to-slate-900/60 p-6 sm:p-10 text-white shadow-[rgba(3,7,18,0.65)_0px_50px_120px_-30px] space-y-8">
         {/* Header */}
         <div className="text-center space-y-1">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Complete Payment
-          </h2>
-          <p className="text-sm text-gray-500">
-            Payment required to store your file on EigenDA
-          </p>
+          <p className="text-xs uppercase tracking-[0.35em] text-white/50">EigenDA payment</p>
+          <h2 className="text-2xl font-semibold">Complete payment</h2>
+          <p className="text-sm text-white/60">Cover storage for your file before we pin it to EigenDA.</p>
         </div>
 
-        <div className="border-t border-gray-200 pt-6">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="space-y-5">
-              {/* File Info */}
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-700">File</p>
-                <p className="text-sm text-gray-600 truncate">{file.name}</p>
-                <p className="text-sm text-gray-600">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB
-                </p>
-              </div>
-
-              {/* Payment Summary */}
-              <div className="rounded-xl bg-gray-50 p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Required Payment</p>
-                    <p className="text-sm text-gray-600">
-                      Estimated storage duration: {effectiveQuote.estimatedDuration} days
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-gray-900">{totalEth} ETH</p>
-                    <p className="text-xs text-gray-500">{usdTotal}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                  <div className="rounded-lg bg-white/60 p-2">
-                    <p className="font-medium text-gray-700">Storage</p>
-                    <p className="text-sm text-gray-900">{storageEth} ETH</p>
-                  </div>
-                  <div className="rounded-lg bg-white/60 p-2">
-                    <p className="font-medium text-gray-700">Gas</p>
-                    <p className="text-sm text-gray-900">{gasEth} ETH</p>
-                  </div>
-                </div>
-                {shortAddress && (
-                  <div className="rounded-lg bg-white/80 p-2 text-xs text-gray-600">
-                    Paying from <span className="font-mono font-medium text-gray-800">{shortAddress}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Duration selection */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-medium text-gray-700">Choose Storage Duration</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {DURATION_OPTIONS.map((option) => (
-                <button
-                      key={option.days}
-                      onClick={() => {
-                        setSelectedDays(option.days);
-                        setUseCustom(false);
-                      }}
-                      className={`p-3 rounded-lg border-2 transition ${
-                        !useCustom && selectedDays === option.days
-                          ? 'border-blue-600 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="font-medium">{option.label}</div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {(() => {
-                          const optionQuote = calculateQuoteForDays(option.days);
-                          if (!optionQuote) return 'Select to update';
-                          return `${Number(formatEther(optionQuote.requiredAmount)).toFixed(6)} ETH`;
-                        })()}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center space-x-2 w-full">
-                  <input
-                    type="number"
-                    min={1}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                    placeholder="Custom"
-                    value={customDays}
-                    onFocus={() => setUseCustom(true)}
-                    onChange={(event) => setCustomDays(event.target.value)}
-                  />
-                  <span className="text-sm text-gray-500">days</span>
-                </div>
+        <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-5">
+            {/* File Info */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.3em] text-white/50 mb-2">File</p>
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium truncate">{file.name}</p>
+                <p className="text-sm text-white/70">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
               </div>
             </div>
 
-            <div>
-              <PaymentBreakdown fileSize={file.size} paymentData={effectiveQuote} />
+            {/* Payment Summary */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.35em] text-white/50">Required payment</p>
+                  <p className="text-sm text-white/70">
+                    Covers {effectiveQuote.estimatedDuration} days
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-semibold">{totalEth} ETH</p>
+                  <p className="text-xs text-white/60">{usdTotal}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-white/60">Storage</p>
+                  <p className="text-base font-semibold text-white">{storageEth} ETH</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-white/60">Gas</p>
+                  <p className="text-base font-semibold text-white">{gasEth} ETH</p>
+                </div>
+              </div>
+              {shortAddress && (
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
+                  Paying from{' '}
+                  <span className="font-mono text-white">{shortAddress}</span>
+                </div>
+              )}
             </div>
+
+            {/* Duration selection */}
+            <div className="space-y-3">
+              <h3 className="text-xs uppercase tracking-[0.3em] text-white/50">
+                Choose storage duration
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                {DURATION_OPTIONS.map((option) => (
+                  <button
+                    key={option.days}
+                    onClick={() => {
+                      setSelectedDays(option.days);
+                      setUseCustom(false);
+                    }}
+                    className={`rounded-2xl border px-4 py-3 text-left transition ${
+                      !useCustom && selectedDays === option.days
+                        ? 'border-sky-400/70 bg-sky-400/10 text-white'
+                        : 'border-white/15 bg-white/5 text-white/80 hover:border-white/35'
+                    }`}
+                  >
+                    <div className="text-sm font-semibold">{option.label}</div>
+                    <div className="text-xs text-white/60 mt-1">
+                      {(() => {
+                        const optionQuote = calculateQuoteForDays(option.days);
+                        if (!optionQuote) return 'Select to update';
+                        return `${Number(formatEther(optionQuote.requiredAmount)).toFixed(6)} ETH`;
+                      })()}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  className="flex-1 rounded-2xl border border-white/15 bg-transparent px-4 py-2 text-sm text-white placeholder:text-white/40 focus:border-sky-400/60 focus:outline-none"
+                  placeholder="Custom"
+                  value={customDays}
+                  onFocus={() => setUseCustom(true)}
+                  onChange={(event) => setCustomDays(event.target.value)}
+                />
+                <span className="text-sm text-white/60">days</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <PaymentBreakdown fileSize={file.size} paymentData={effectiveQuote} />
           </div>
         </div>
 
         {/* Error message */}
         {error && (
-          <div className="flex items-center space-x-2 p-3 bg-red-50 rounded-lg text-sm text-red-600">
+          <div className="flex items-center space-x-2 rounded-2xl border border-red-400/40 bg-red-500/10 p-3 text-sm text-red-100">
             <AlertCircle className="w-5 h-5 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -352,24 +350,24 @@ export default function PaymentModal({
 
         {/* Success message */}
         {isConfirmed && (
-          <div className="flex items-center space-x-2 p-3 bg-green-50 rounded-lg text-sm text-green-600">
+          <div className="flex items-center space-x-2 rounded-2xl border border-emerald-300/40 bg-emerald-400/10 p-3 text-sm text-emerald-100">
             <span>✓ Payment successful!</span>
           </div>
         )}
 
         {/* Buttons */}
-        <div className="flex space-x-3 pt-2">
+        <div className="flex flex-col gap-3 pt-2 sm:flex-row">
           <button
             onClick={onClose}
             disabled={isProcessing}
-            className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition disabled:opacity-50"
+            className="flex-1 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white/80 transition hover:border-white/40 disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handlePayment}
             disabled={payDisabled}
-            className="flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 rounded-2xl bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.9),rgba(96,165,250,0.8)),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.85),rgba(236,72,153,0.8))] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-900/40 transition hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isProcessing ? (
               <div className="flex items-center justify-center space-x-2">
@@ -383,7 +381,7 @@ export default function PaymentModal({
         </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-gray-400 pt-2">
+        <p className="text-center text-xs text-white/40">
           Permanent • Decentralized • Secure
         </p>
       </div>
