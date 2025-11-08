@@ -61,23 +61,23 @@ export default function PaymentBreakdown({ fileSize, paymentData }: PaymentBreak
   }, [totalEth, storageEth, gasEth]);
 
   return (
-    <div className="rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 p-5 space-y-4 border border-blue-100">
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-5 space-y-4 text-white shadow-inner shadow-black/20">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-800">Payment Breakdown</h3>
-        <span className="text-xs text-gray-500">{paymentData.estimatedDuration} days storage</span>
+      <div className="flex items-center justify-between text-sm">
+        <h3 className="font-semibold">Payment breakdown</h3>
+        <span className="text-white/60">{paymentData.estimatedDuration} days storage</span>
       </div>
 
       {/* File Details */}
-      <div className="text-xs text-gray-600 bg-white/60 rounded-lg p-3 space-y-1">
+      <div className="text-xs text-white/70 rounded-xl border border-white/10 bg-white/5 p-3 space-y-1">
         <div className="flex justify-between">
-          <span>File Size:</span>
-          <span className="font-medium text-gray-800">{fileSizeMB.toFixed(2)} MB</span>
+          <span>File size</span>
+          <span className="font-semibold text-white">{fileSizeMB.toFixed(2)} MB</span>
         </div>
         {paymentData.chunkCount && paymentData.chunkCount > 0 && paymentData.chunkSize && (
           <div className="flex justify-between">
-            <span>Chunks:</span>
-            <span className="font-medium text-gray-800">
+            <span>Chunks</span>
+            <span className="font-semibold text-white">
               {paymentData.chunkCount} {paymentData.chunkCount === 1 ? 'chunk' : 'chunks'}
               {formattedChunkSize ? ` (${formattedChunkSize} MiB target)` : ''}
             </span>
@@ -88,68 +88,68 @@ export default function PaymentBreakdown({ fileSize, paymentData }: PaymentBreak
       {/* Cost Breakdown */}
       <div className="space-y-3">
         {/* Storage Cost */}
-        <div className="bg-white/60 rounded-lg p-3 space-y-2">
+        <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Storage Cost</span>
+            <span className="text-sm font-medium text-white">Storage cost</span>
             <div className="text-right">
-              <div className="text-sm font-semibold text-gray-900">{storageEth.toFixed(6)} ETH</div>
-              <div className="text-xs text-gray-500">{usdStorage}</div>
+              <div className="text-sm font-semibold text-white">{storageEth.toFixed(6)} ETH</div>
+              <div className="text-xs text-white/60">{usdStorage}</div>
             </div>
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-white/60">
             {fileSizeMB.toFixed(2)} MB × 0.001 ETH/MB
           </div>
         </div>
 
         {/* Gas Cost */}
-        <div className="bg-white/60 rounded-lg p-3 space-y-2">
+        <div className="rounded-xl border border-white/10 bg-white/5 p-3 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1">
-              <span className="text-sm font-medium text-gray-700">Gas Fee</span>
+              <span className="text-sm font-medium text-white">Gas fee</span>
               <div className="group relative">
-                <Info className="w-3 h-3 text-gray-400 cursor-help" />
-                <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
+                <Info className="w-3 h-3 text-white/40 cursor-help" />
+                <div className="pointer-events-none absolute bottom-full left-1/2 hidden w-64 -translate-x-1/2 transform rounded-lg bg-slate-900 p-3 text-xs text-white shadow-xl group-hover:block">
                   <div className="space-y-1">
-                    <p className="font-medium">Gas fees cover blockchain transaction costs.</p>
+                    <p className="font-medium text-white">
+                      Gas covers EigenDA submission costs.
+                    </p>
                     {paymentData.chunkCount && paymentData.chunkCount > 1 ? (
-                      <p>
-                        Your file requires {paymentData.chunkCount} separate transactions to EigenDA ({paymentData.chunkCount} {paymentData.chunkCount === 1 ? 'chunk' : 'chunks'} × 0.0001 ETH = {gasEth.toFixed(4)} ETH)
+                      <p className="text-white/80">
+                        {paymentData.chunkCount} chunks × 0.0001 ETH = {gasEth.toFixed(4)} ETH
                       </p>
                     ) : (
-                      <p>Single transaction to EigenDA (0.0001 ETH)</p>
+                      <p className="text-white/80">Single transaction (0.0001 ETH)</p>
                     )}
                   </div>
-                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1">
-                    <div className="border-4 border-transparent border-t-gray-900"></div>
-                  </div>
+                  <div className="absolute top-full left-1/2 -mt-1 -translate-x-1/2 border-4 border-transparent border-t-slate-900" />
                 </div>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-sm font-semibold text-gray-900">{gasEth.toFixed(6)} ETH</div>
-              <div className="text-xs text-gray-500">{usdGas}</div>
+              <div className="text-sm font-semibold text-white">{gasEth.toFixed(6)} ETH</div>
+              <div className="text-xs text-white/60">{usdGas}</div>
             </div>
           </div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-white/60">
             {chunkLabel} × 0.0001 ETH
           </div>
         </div>
       </div>
 
       {/* Total */}
-      <div className="pt-3 border-t border-blue-200">
+      <div className="pt-3 border-t border-white/10">
         <div className="flex items-center justify-between">
-          <span className="text-base font-semibold text-gray-800">Total Payment</span>
+          <span className="text-base font-semibold text-white">Total payment</span>
           <div className="text-right">
-            <div className="text-lg font-bold text-blue-600">{totalEth.toFixed(6)} ETH</div>
-            <div className="text-sm text-gray-600">{usdTotal}</div>
+            <div className="text-lg font-bold text-sky-200">{totalEth.toFixed(6)} ETH</div>
+            <div className="text-sm text-white/70">{usdTotal}</div>
           </div>
         </div>
       </div>
 
       {/* Duration Info */}
-      <div className="text-xs text-center text-gray-500 pt-2">
-        Covers storage for <span className="font-medium text-gray-700">{paymentData.estimatedDuration} days</span>
+      <div className="text-xs text-center text-white/60">
+        Covers storage for <span className="font-medium text-white">{paymentData.estimatedDuration} days</span>
       </div>
     </div>
   );
