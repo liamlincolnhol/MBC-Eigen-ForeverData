@@ -7,6 +7,7 @@ import WalletConnect from './WalletConnectNew';
 import PaymentModal from './PaymentModalNew';
 import { chunkFile, calculateProgress, ChunkUploadProgress } from '../lib/chunking';
 import { useAccount } from 'wagmi';
+import InteractiveCard from './InteractiveCard';
 
 // Testing mode: Controlled by NEXT_PUBLIC_SKIP_PAYMENT_CHECKS environment variable
 const SKIP_PAYMENT_CHECKS = process.env.NEXT_PUBLIC_SKIP_PAYMENT_CHECKS === 'true';
@@ -250,6 +251,19 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
     disabled: isUploading
   });
 
+  const dropzoneClassName = [
+    'group relative overflow-hidden rounded-[32px] border border-white/15 p-6 sm:p-8 md:p-12 text-center',
+    'bg-slate-950/70 text-white backdrop-blur-xl',
+    'transition-all duration-300 ease-out shadow-[rgba(3,7,18,0.7)_0px_45px_95px_-25px]',
+    isDragActive
+      ? 'border-blue-200/80 shadow-[rgba(59,130,246,0.65)_0px_55px_105px_-25px] scale-[1.01]'
+      : 'hover:border-white/35 hover:shadow-[rgba(59,130,246,0.45)_0px_55px_105px_-35px]',
+    isUploading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+  ].join(' ');
+
+  const rootProps = getRootProps({ className: dropzoneClassName });
+  const inputProps = getInputProps();
+
   return (
     <div className="w-full max-w-2xl mx-auto">
       {/* Wallet Connection - Hidden in testing mode */}
@@ -269,75 +283,76 @@ export default function UploadForm({ onUploadSuccess }: UploadFormProps) {
       )}
 
       {/* Upload Area */}
-      <div
-        {...getRootProps()}
-        className={`
-          relative border-2 border-dashed rounded-xl p-12 text-center cursor-pointer
-          transition-all duration-200 ease-in-out
-          ${isDragActive 
-            ? 'border-blue-400 bg-blue-50 scale-105' 
-            : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-          }
-          ${isUploading ? 'cursor-not-allowed opacity-50' : ''}
-        `}
-      >
-        <input {...getInputProps()} />
-        
-        {/* Background gradient effect */}
-        <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-blue-50/50 via-purple-50/30 to-pink-50/50 opacity-60" />
-        
+      <InteractiveCard containerClassName="mb-10" {...rootProps}>
+        <input {...inputProps} />
+
+        {/* Layered background */}
+        <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.45),rgba(79,70,229,0.12),transparent_75%)] opacity-90" />
+        <div className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-60">
+          <div className="absolute inset-0 bg-[linear-gradient(120deg,rgba(255,255,255,0.15)_0%,transparent_40%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(236,72,153,0.3),transparent_60%)]" />
+        </div>
+        <div className="pointer-events-none absolute inset-8 rounded-[24px] border border-white/20 opacity-60" />
+
         <div className="relative z-10">
           {isUploading ? (
-            <div className="space-y-4">
-              <Loader2 className="w-12 h-12 mx-auto text-blue-600 animate-spin" />
-              <div className="space-y-2">
-                <p className="text-lg font-medium text-gray-700">
-                  {willBeChunked ? 'Uploading in chunks...' : 'Uploading...'}
+            <div className="space-y-5">
+              <div className="flex items-center justify-center">
+                <Loader2 className="w-12 h-12 text-blue-200 animate-spin" />
+              </div>
+              <div className="space-y-3 text-white/90">
+                <p className="text-lg font-semibold">
+                  {willBeChunked ? 'Uploading in EigenDA blobs' : 'Uploading to EigenDA'}
                 </p>
                 {chunkProgress && (
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-white/70">
                     Chunk {chunkProgress.currentChunk} of {chunkProgress.totalChunks}
                   </p>
                 )}
-                <div className="w-full bg-gray-200 rounded-full h-2 max-w-xs mx-auto">
+                <div className="w-full bg-white/15 rounded-full h-2 max-w-md mx-auto overflow-hidden">
                   <div
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300 ease-out"
+                    className="bg-gradient-to-r from-sky-300 via-indigo-300 to-pink-300 h-2 rounded-full transition-all duration-300 ease-out"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
-                <p className="text-sm text-gray-500">{progress}% complete</p>
+                <p className="text-sm text-white/70">{progress}% complete</p>
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-center">
-                {isDragActive ? (
-                  <Upload className="w-12 h-12 text-blue-600" />
-                ) : (
-                  <File className="w-12 h-12 text-gray-400" />
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <p className="text-xl font-semibold text-gray-900">
-                  {isDragActive ? 'Drop your file here' : 'Upload your file'}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Drag and drop a file here, or{' '}
-                  <span className="text-blue-600 font-medium">click to browse</span>
-                </p>
+            <div className="relative min-h-[260px] text-white md:min-h-[280px]">
+              <div className="absolute inset-x-4 top-4 flex flex-col gap-3 text-left sm:inset-x-6 sm:flex-row sm:items-center sm:gap-5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/30 bg-white/5 shrink-0">
+                  {isDragActive ? (
+                    <Upload className="w-4 h-4 text-sky-200" />
+                  ) : (
+                    <File className="w-4 h-4 text-white/85" />
+                  )}
+                </div>
+                <div className="space-y-1 max-w-2xl sm:text-left">
+                  <p className="text-[0.55rem] sm:text-[0.6rem] uppercase tracking-[0.5em] text-white/45">
+                    EigenDA ready
+                  </p>
+                  <p className="text-[clamp(0.78rem,1.35vw,0.95rem)] text-white/70 leading-relaxed">
+                    Drop any file—ForeverData handles payments, proofs, and chunking automatically.
+                  </p>
+                </div>
               </div>
 
-              {/* Upload info */}
-              <div className="flex justify-center mt-6">
-                <div className="px-3 py-1 bg-gray-100 rounded-full">
-                  <p className="text-xs text-gray-600">Permanent • Decentralized • Forever</p>
-                </div>
+              <div className="flex min-h-[260px] flex-col items-center justify-center gap-3 text-center px-4 pt-12 sm:px-6 sm:pt-14">
+                <p className="font-semibold tracking-tight text-white text-[clamp(1.5rem,3vw,2.2rem)] leading-tight">
+                  {isDragActive ? 'Drop your file into orbit' : 'Upload a file to EigenDA'}
+                </p>
+                <p className="text-[clamp(0.85rem,1.8vw,1rem)] text-white/80">
+                  Drag and drop, or{' '}
+                  <span className="text-sky-200 font-semibold underline-offset-4 hover:underline">
+                    click to browse
+                  </span>
+                </p>
               </div>
             </div>
           )}
         </div>
-      </div>
+      </InteractiveCard>
 
       {/* Error Message */}
       {error && (
