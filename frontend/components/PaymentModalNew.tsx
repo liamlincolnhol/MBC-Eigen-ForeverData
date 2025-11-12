@@ -270,7 +270,6 @@ export default function PaymentModal({
           <h2 className="text-2xl font-semibold">Complete payment</h2>
           <p className="text-sm text-white/60">Cover storage for your file before we pin it to EigenDA.</p>
         </div>
-
         {needsNetworkSwitch && (
           <div className="flex items-start gap-3 rounded-2xl border border-amber-300/30 bg-amber-200/10 p-4 text-sm text-amber-50">
             <AlertTriangle className="w-5 h-5 flex-shrink-0" />
@@ -296,7 +295,6 @@ export default function PaymentModal({
             </div>
           </div>
         )}
-
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-5">
             {/* File Info */}
