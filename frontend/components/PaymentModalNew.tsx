@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useWriteContract, useWaitForTransactionReceipt, useChainId, useSwitchChain } from 'wagmi';
 import { formatEther, parseEther } from 'viem';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import {
   FOREVER_DATA_PAYMENTS_ADDRESS,
   FOREVER_DATA_PAYMENTS_ABI,
@@ -54,6 +54,14 @@ export default function PaymentModal({
   const [quote, setQuote] = useState<PaymentSummary | null>(paymentData);
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>(undefined);
   const [initialized, setInitialized] = useState(false);
+  const chainId = useChainId();
+  const {
+    switchChainAsync,
+    isPending: isSwitchingChain,
+    error: switchChainError
+  } = useSwitchChain();
+  const targetChainId = sepolia.id;
+  const needsNetworkSwitch = Boolean(walletAddress && chainId && chainId !== targetChainId);
 
   const {
     writeContractAsync,
@@ -209,6 +217,22 @@ export default function PaymentModal({
       return;
     }
 
+    if (chainId !== targetChainId) {
+      if (!switchChainAsync) {
+        setError('Please switch your wallet to Sepolia before paying.');
+        return;
+      }
+      try {
+        await switchChainAsync({ chainId: targetChainId });
+      } catch (switchError) {
+        const switchMessage = switchError instanceof Error
+          ? switchError.message
+          : 'Please approve the network switch in your wallet.';
+        setError(`Switch to Sepolia to continue. ${switchMessage}`);
+        return;
+      }
+    }
+
     try {
       const hash = await writeContractAsync({
         address: FOREVER_DATA_PAYMENTS_ADDRESS as `0x${string}`,
@@ -235,7 +259,7 @@ export default function PaymentModal({
   const shortAddress = walletAddress
     ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
     : null;
-  const payDisabled = isProcessing || resolvedDays <= 0;
+  const payDisabled = isProcessing || resolvedDays <= 0 || needsNetworkSwitch;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -246,6 +270,32 @@ export default function PaymentModal({
           <h2 className="text-2xl font-semibold">Complete payment</h2>
           <p className="text-sm text-white/60">Cover storage for your file before we pin it to EigenDA.</p>
         </div>
+
+        {needsNetworkSwitch && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-300/30 bg-amber-200/10 p-4 text-sm text-amber-50">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+            <div>
+              <p className="font-semibold tracking-wide uppercase text-[11px] text-amber-100">
+                Wrong network detected
+              </p>
+              <p className="mt-1 text-amber-50">
+                Please switch your wallet to Sepolia before submitting the payment.
+              </p>
+              <button
+                className="mt-3 inline-flex items-center rounded-xl border border-amber-300/40 px-3 py-1.5 text-xs font-semibold text-amber-100 transition hover:border-amber-200 hover:text-white disabled:opacity-60"
+                onClick={() => switchChainAsync?.({ chainId: targetChainId })}
+                disabled={isSwitchingChain || !switchChainAsync}
+              >
+                {isSwitchingChain ? 'Switching…' : 'Switch to Sepolia'}
+              </button>
+              {switchChainError && (
+                <p className="mt-1 text-[11px] text-amber-200/80">
+                  {switchChainError.message || 'Confirm the network switch in your wallet.'}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-5">
