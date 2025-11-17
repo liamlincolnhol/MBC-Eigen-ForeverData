@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { X, FileText, AlertCircle, Loader2, ExternalLink, Copy, RefreshCcw, Globe2, UserRound } from 'lucide-react';
+import { X, FileText, AlertCircle, Loader2, ExternalLink, Copy, RefreshCcw, Globe2, User } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import FileBalanceCard from './FileBalanceCard';
 import TopUpModal from './TopUpModal';
@@ -197,7 +197,7 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
                 viewMode === 'mine' ? 'bg-white text-slate-900 shadow' : 'hover:bg-white/10'
               }`}
             >
-              <UserRound className="w-3 h-3" />
+              <User className="w-3 h-3" />
               <span>My files</span>
             </button>
           </div>
