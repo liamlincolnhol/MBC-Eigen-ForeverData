@@ -141,8 +141,26 @@ export async function uploadChunk(
 // Get file metadata by ID
 export async function getFileMetadata(fileId: string): Promise<FileMetadata> {
   try {
-    const response = await api.get<FileMetadata>(`/f/${fileId}`);
-    return response.data;
+    const response = await api.get(`/api/metadata/${fileId}`);
+    const data = response.data as Record<string, any>;
+
+    const baseUrl = (API_BASE_URL || '').replace(/\/$/, '');
+    const blobId = data.currentBlobId || data.blobId || '';
+    const blobKey = data.blobKey || data.blob_key;
+
+    return {
+      fileId: data.fileId || fileId,
+      fileName: data.fileName || data.name || 'Unknown file',
+      fileSize: data.fileSize || data.size || 0,
+      fileHash: data.fileHash || data.hash || '',
+      uploadDate: data.uploadDate || data.createdAt || new Date().toISOString(),
+      permanentLink: data.permanentLink || `${baseUrl}/f/${fileId}`,
+      currentBlobId: blobId,
+      blobKey: blobKey,
+      expiryDate: data.expiryDate || data.expiry || '',
+      daysRemaining: data.daysRemaining ?? data.days_remaining,
+      refreshHistory: data.refreshHistory || data.refresh_history || []
+    };
   } catch (error) {
     throw handleApiError(error, 'Failed to fetch file metadata');
   }
