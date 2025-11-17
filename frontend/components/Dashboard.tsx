@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, FileText, AlertCircle, Loader2, ExternalLink, Copy, RefreshCcw } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { X, FileText, AlertCircle, Loader2, ExternalLink, Copy, RefreshCcw, Globe2, User } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import FileBalanceCard from './FileBalanceCard';
 import TopUpModal from './TopUpModal';
@@ -24,40 +24,81 @@ interface DashboardProps {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.foreverdata.live';
 
+type ViewMode = 'global' | 'mine';
+
 export default function Dashboard({ isOpen, onClose }: DashboardProps) {
   const { address, isConnected } = useAccount();
-  const [files, setFiles] = useState<FileData[]>([]);
+  const [globalFiles, setGlobalFiles] = useState<FileData[]>([]);
+  const [myFiles, setMyFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [topUpTarget, setTopUpTarget] = useState<{ file: FileData; balance: bigint; owner: string | null } | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('global');
+  const fetchIdRef = useRef(0);
 
-  const fetchFiles = useCallback(async () => {
-    if (!address) return;
+  const fetchFiles = useCallback(async (mode: ViewMode) => {
+    if (mode === 'mine' && (!address || !isConnected)) {
+      setMyFiles([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    const requestId = fetchIdRef.current + 1;
+    fetchIdRef.current = requestId;
+
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`${API_BASE_URL}/api/files?walletAddress=${address}`);
+      const query = mode === 'mine' ? `?walletAddress=${address}` : '';
+      const response = await fetch(`${API_BASE_URL}/api/files${query}`);
       if (!response.ok) {
         throw new Error('Failed to fetch files');
       }
       const data: FileData[] = await response.json();
-      setFiles(data);
+      if (mode === 'mine') {
+        setMyFiles(data);
+      } else {
+        setGlobalFiles(data);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
-      setFiles([]);
+      if (mode === 'mine') {
+        setMyFiles([]);
+      } else {
+        setGlobalFiles([]);
+      }
     } finally {
-      setLoading(false);
+      if (fetchIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
-  }, [address]);
+  }, [address, isConnected]);
 
   useEffect(() => {
-    if (isOpen && isConnected && address) {
-      void fetchFiles();
+    if (!isOpen) {
+      return;
     }
-    if (isOpen && (!isConnected || !address)) {
-      setFiles([]);
+
+    if (viewMode === 'global') {
+      void fetchFiles('global');
+      return;
     }
-  }, [isOpen, isConnected, address, fetchFiles]);
+
+    if (viewMode === 'mine') {
+      if (isConnected && address) {
+        void fetchFiles('mine');
+      } else {
+        setMyFiles([]);
+      }
+    }
+  }, [isOpen, viewMode, isConnected, address, fetchFiles]);
+
+  useEffect(() => {
+    setTopUpTarget(null);
+  }, [viewMode]);
+
+  const activeFiles = useMemo(() => (viewMode === 'global' ? globalFiles : myFiles), [viewMode, globalFiles, myFiles]);
 
   const openFileUrl = (fileId: string) => `${API_BASE_URL}/f/${fileId}`;
 
@@ -78,6 +119,18 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
   };
 
   const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : null;
+  const headerTitle = viewMode === 'global' ? 'Global File Feed' : 'My Files';
+  const headerSubtitle = viewMode === 'global'
+    ? 'Latest uploads across ForeverData'
+    : 'Files funded by your connected wallet';
+
+  const handleChangeView = (mode: ViewMode) => {
+    if (viewMode === mode) return;
+    setError(null);
+    setViewMode(mode);
+  };
+
+  const refreshDisabled = viewMode === 'mine' ? (!isConnected || !address || loading) : loading;
 
   return (
     <>
@@ -98,8 +151,9 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
             <span className="text-xs uppercase tracking-[0.4em] text-white/40">ForeverData</span>
             <h2 className="text-2xl font-semibold text-white flex items-center space-x-2">
               <FileText className="w-5 h-5 text-sky-200" />
-              <span>My Files</span>
+              <span>{headerTitle}</span>
             </h2>
+            <p className="text-sm text-white/50">{headerSubtitle}</p>
           </div>
           <button
             onClick={onClose}
@@ -109,48 +163,78 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
           </button>
         </div>
 
-        <div className="px-8 pt-4 pb-3 flex items-center justify-between border-b border-white/10 text-xs text-white/60">
-          {shortAddress ? (
-            <span className="font-mono">Connected: {shortAddress}</span>
-          ) : (
-            <span>Connect a wallet to view your uploads</span>
-          )}
-          <button
-            onClick={() => fetchFiles()}
-            disabled={!isConnected || loading || !address}
-            className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-full border border-white/20 text-white/80 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCcw className="w-3 h-3" />
-            <span>Refresh</span>
-          </button>
+        <div className="px-8 pt-4 pb-3 space-y-3 border-b border-white/10 text-xs text-white/60">
+          <div className="flex items-center justify-between gap-3">
+            {viewMode === 'global' ? (
+              <span>Showing recent uploads from the entire network</span>
+            ) : shortAddress ? (
+              <span className="font-mono">Connected: {shortAddress}</span>
+            ) : (
+              <span>Connect a wallet to view the files you’ve funded</span>
+            )}
+            <button
+              onClick={() => fetchFiles(viewMode)}
+              disabled={refreshDisabled}
+              className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-full border border-white/20 text-white/80 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCcw className="w-3 h-3" />
+              <span>Refresh</span>
+            </button>
+          </div>
+          <div className="inline-flex rounded-full bg-white/10 p-1 text-white/70">
+            <button
+              onClick={() => handleChangeView('global')}
+              className={`flex items-center space-x-1 rounded-full px-3 py-1 text-xs font-medium transition ${
+                viewMode === 'global' ? 'bg-white text-slate-900 shadow' : 'hover:bg-white/10'
+              }`}
+            >
+              <Globe2 className="w-3 h-3" />
+              <span>Global feed</span>
+            </button>
+            <button
+              onClick={() => handleChangeView('mine')}
+              className={`flex items-center space-x-1 rounded-full px-3 py-1 text-xs font-medium transition ${
+                viewMode === 'mine' ? 'bg-white text-slate-900 shadow' : 'hover:bg-white/10'
+              }`}
+            >
+              <User className="w-3 h-3" />
+              <span>My files</span>
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto min-h-0 p-8 space-y-4">
-          {!isConnected ? (
+          {viewMode === 'mine' && !isConnected ? (
             <div className="p-6 text-center text-white/60 bg-white/5 rounded-2xl border border-white/10">
               <p>Connect your wallet to see the files funded by this address.</p>
             </div>
           ) : loading ? (
             <div className="flex flex-col items-center justify-center py-12 text-white/60">
               <Loader2 className="w-6 h-6 animate-spin mb-2" />
-              <p>Loading your files...</p>
+              <p>Loading files...</p>
             </div>
           ) : error ? (
             <div className="p-6 text-center text-red-200 bg-red-500/10 border border-red-500/30 rounded-2xl">
               <AlertCircle className="w-8 h-8 mx-auto mb-2 text-red-300" />
               <p>{error}</p>
             </div>
-          ) : files.length === 0 ? (
+          ) : activeFiles.length === 0 ? (
             <div className="p-6 text-center text-white/60 bg-white/5 rounded-2xl border border-white/10">
-              <p>No uploads found for this wallet yet.</p>
-              <p className="text-xs mt-2 text-white/40">
-                Payment records sync automatically once your on-chain deposit is detected.
+              <p>
+                {viewMode === 'global'
+                  ? 'No uploads have been indexed yet. Try again shortly.'
+                  : 'No uploads found for this wallet yet.'}
               </p>
+              {viewMode === 'mine' && (
+                <p className="text-xs mt-2 text-white/40">
+                  Payment records sync automatically once your on-chain deposit is detected.
+                </p>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
-                {files.map((file) => (
+                {activeFiles.map((file) => (
                   <FileBalanceCard
                     key={file.fileId}
                     fileId={file.fileId}
@@ -177,10 +261,10 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
           )}
         </div>
 
-        {files.length > 0 && isConnected && (
+        {activeFiles.length > 0 && isConnected && (
           <div className="px-6 pb-5">
             <div className="grid grid-cols-2 gap-3 text-xs">
-              {files.map((file) => (
+              {activeFiles.map((file) => (
                 <div key={`${file.fileId}-actions`} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                   <div className="flex flex-col">
                     <span className="font-mono text-[10px] text-gray-500">#{file.fileId.slice(0, 6)}</span>
@@ -214,7 +298,7 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
           isOpen={Boolean(topUpTarget)}
           onClose={() => {
             setTopUpTarget(null);
-            void fetchFiles();
+            void fetchFiles(viewMode);
           }}
           fileId={topUpTarget.file.fileId}
           fileName={topUpTarget.file.fileName}
