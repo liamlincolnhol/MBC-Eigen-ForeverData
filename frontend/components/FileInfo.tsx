@@ -9,6 +9,12 @@ interface FileInfoProps {
 
 export default function FileInfo({ metadata }: FileInfoProps) {
   const [copied, setCopied] = useState(false);
+  const [blobKeyCopied, setBlobKeyCopied] = useState(false);
+
+  const blobExplorerBase = (process.env.NEXT_PUBLIC_BLOB_EXPLORER_URL || 'https://eigenda.xyz/blob-explorer').replace(/\/$/, '');
+  const blobExplorerUrl = metadata.blobKey
+    ? `${blobExplorerBase}${blobExplorerBase.includes('?') ? '&' : '?'}blobKey=${metadata.blobKey}`
+    : null;
 
   const handleCopy = async () => {
     const success = await copyToClipboard(metadata.permanentLink);
@@ -18,8 +24,23 @@ export default function FileInfo({ metadata }: FileInfoProps) {
     }
   };
 
+  const handleCopyBlobKey = async () => {
+    if (!metadata.blobKey) return;
+
+    const success = await copyToClipboard(metadata.blobKey);
+    if (success) {
+      setBlobKeyCopied(true);
+      setTimeout(() => setBlobKeyCopied(false), 2000);
+    }
+  };
+
   const handleExternalLink = () => {
     window.open(metadata.permanentLink, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleBlobExplorerLink = () => {
+    if (!blobExplorerUrl) return;
+    window.open(blobExplorerUrl, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -106,6 +127,65 @@ export default function FileInfo({ metadata }: FileInfoProps) {
             <p className="text-xs font-mono text-gray-600 break-all bg-gray-50 p-2 rounded">
               {metadata.currentBlobId}
             </p>
+          </div>
+        </div>
+
+        {/* Blob Explorer */}
+        <div className="flex items-start space-x-3">
+          <div className="w-5 h-5 text-gray-400 mt-0.5 flex items-center justify-center">
+            <span className="text-xs font-mono">🛰️</span>
+          </div>
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-gray-900">Blob Explorer</p>
+              {metadata.blobKey && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={handleCopyBlobKey}
+                    className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-200 ${
+                      blobKeyCopied
+                        ? 'bg-green-100 text-green-800 border border-green-200'
+                        : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
+                    }`}
+                  >
+                    {blobKeyCopied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 mr-1" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 mr-1" />
+                        Copy key
+                      </>
+                    )}
+                  </button>
+                  {blobExplorerUrl && (
+                    <button
+                      onClick={handleBlobExplorerLink}
+                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-600 text-white border border-blue-600 hover:bg-blue-700 transition-colors duration-200"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                      Open explorer
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            {metadata.blobKey ? (
+              <>
+                <p className="text-xs font-mono text-gray-600 break-all bg-gray-50 p-2 rounded">
+                  {metadata.blobKey}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Use this blob key to inspect the dispersal on EigenDA relays or the official blob explorer.
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-gray-500">
+                Blob key will be available after the first successful upload completes.
+              </p>
+            )}
           </div>
         </div>
       </div>

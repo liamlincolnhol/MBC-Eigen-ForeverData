@@ -8,6 +8,8 @@ export interface UploadResponse {
   uploadDate: string;
   permanentLink: string;
   currentBlobId: string;
+  blobId?: string;
+  blobKey?: string;
   expiryDate: string;
   daysRemaining: number;
   refreshHistory: RefreshRecord[];
@@ -28,6 +30,7 @@ export interface FileMetadata {
   uploadDate: string; // ISO 8601 timestamp
   permanentLink: string;
   currentBlobId: string;
+  blobKey?: string;
   expiryDate: string; // ISO 8601 timestamp
   daysRemaining?: number; // days until expiry
   refreshHistory: RefreshRecord[];
