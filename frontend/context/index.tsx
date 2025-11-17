@@ -10,8 +10,8 @@ import { cookieToInitialState, WagmiProvider, type Config } from 'wagmi'
 // Set up queryClient
 const queryClient = new QueryClient()
 
-if (!projectId) {
-  throw new Error('Project ID is not defined')
+if (!process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID && process.env.NODE_ENV !== 'production') {
+  console.warn('[Context] NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID not set - using placeholder projectId')
 }
 
 // Set up metadata

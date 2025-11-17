@@ -1,5 +1,5 @@
 import axios, { AxiosProgressEvent } from 'axios';
-import { UploadResponse, FileMetadata, ApiError } from './types';
+import { UploadResponse, FileMetadata, ApiError, RefreshRecord } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.foreverdata.live';
 
@@ -142,7 +142,17 @@ export async function uploadChunk(
 export async function getFileMetadata(fileId: string): Promise<FileMetadata> {
   try {
     const response = await api.get(`/api/metadata/${fileId}`);
-    const data = response.data as Record<string, any>;
+    const data = response.data as Partial<FileMetadata> & {
+      name?: string;
+      size?: number;
+      hash?: string;
+      createdAt?: string;
+      blobId?: string;
+      blob_key?: string;
+      expiry?: string;
+      days_remaining?: number;
+      refresh_history?: RefreshRecord[];
+    };
 
     const baseUrl = (API_BASE_URL || '').replace(/\/$/, '');
     const blobId = data.currentBlobId || data.blobId || '';
