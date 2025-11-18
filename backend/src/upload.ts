@@ -6,6 +6,7 @@ import { insertFile } from "./db.js";
 import { eigenDAConfig } from "./config.js";
 import { calculateExpiry, getRemainingDays } from "./utils.js";
 import { calculateRequiredPayment, verifyPayment } from "./utils/payments.js";
+import { computeBlobKeyFromCertificate } from "./utils/blob.js";
 
 // Testing mode: Controlled by SKIP_PAYMENT_VERIFICATION environment variable
 const SKIP_PAYMENT_VERIFICATION = process.env.SKIP_PAYMENT_VERIFICATION === 'true';
@@ -117,14 +118,15 @@ export async function handleUpload(req: express.Request, res: express.Response) 
 
     // Get the certificate (blob ID) from response
     const certificateBuffer = await response.arrayBuffer();
-    const certificate = Buffer.from(certificateBuffer).toString('hex');
-    
-    // Extract blob key for explorer (keccak256 hash of certificate)
-    const blobKey = crypto.createHash('sha256').update(Buffer.from(certificateBuffer)).digest('hex');
+    const certificateBytes = new Uint8Array(certificateBuffer);
+    const certificate = Buffer.from(certificateBytes).toString('hex');
+
+    // Extract blob key for explorer (keccak256 hash of the blob header/certificate)
+    const blobKey = computeBlobKeyFromCertificate(certificateBytes);
 
     console.log(`Upload successful!`);
     console.log(`Certificate: 0x${certificate.slice(0, 20)}...`);
-    console.log(`Blob Key: 0x${blobKey}`);
+    console.log(`Blob Key: ${blobKey}`);
 
     // Store in database
     const expiry = calculateExpiry(targetDuration);
@@ -150,6 +152,8 @@ export async function handleUpload(req: express.Request, res: express.Response) 
       uploadDate: new Date().toISOString(),
       permanentLink: `https://api.foreverdata.live/f/${fileId}`,
       blobId: `0x${certificate}`,
+      currentBlobId: `0x${certificate}`,
+      blobKey,
       expiryDate: expiry,
       daysRemaining: getRemainingDays(expiry),
       refreshHistory: []

@@ -3,11 +3,11 @@ import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import { sepolia } from '@reown/appkit/networks'
 import type { CustomRpcUrlMap } from '@reown/appkit-common'
 
-// Get projectId from environment variable
-export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+// Get projectId from environment variable with a safe fallback for build-time envs
+export const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'demo-project-id'
 
-if (!projectId) {
-  throw new Error('Project ID is not defined')
+if (!process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID && process.env.NODE_ENV !== 'production') {
+  console.warn('[Config] NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID not set - using placeholder projectId')
 }
 
 // Define networks - using Sepolia testnet and mainnet

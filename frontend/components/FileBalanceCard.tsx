@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useReadContract } from 'wagmi';
 import { formatEther } from 'viem';
-import { AlertTriangle, TrendingUp, Download, Eye } from 'lucide-react';
+import { AlertTriangle, TrendingUp, Download, Eye, Copy, ExternalLink } from 'lucide-react';
 import { FOREVER_DATA_PAYMENTS_ADDRESS, FOREVER_DATA_PAYMENTS_ABI } from '../lib/payment';
 import { formatUsd, ethToUsd } from '../lib/coinGecko';
 
@@ -11,6 +11,7 @@ interface FileBalanceCardProps {
   fileSize: number; // in bytes
   createdAt: string;
   permanentLink: string;
+  blobKey?: string;
   ownerAddress?: string | null;
   onTopUp: (balance: bigint, owner: string | null) => void;
   onView: () => void;
@@ -23,6 +24,7 @@ export default function FileBalanceCard({
   fileSize,
   createdAt,
   permanentLink,
+  blobKey,
   onTopUp,
   ownerAddress,
   onView,
@@ -32,6 +34,7 @@ export default function FileBalanceCard({
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   const [balanceWei, setBalanceWei] = useState<bigint>(BigInt(0));
   const [contractOwner, setContractOwner] = useState<string | null>(null);
+  const [copiedBlobKey, setCopiedBlobKey] = useState(false);
 
   // Fetch file balance from smart contract
   const { data: balanceData, isLoading } = useReadContract({
@@ -72,6 +75,10 @@ export default function FileBalanceCard({
   }, [ownerData, ownerAddress]);
 
   const balance = parseFloat(formatEther(balanceWei));
+  const blobExplorerBase = (process.env.NEXT_PUBLIC_BLOB_EXPLORER_URL || 'https://blobs-sepolia.eigenda.xyz/blobs').replace(/\/$/, '');
+  const blobExplorerUrl = blobKey
+    ? `${blobExplorerBase}${blobExplorerBase.includes('?') ? '&' : '?'}blobKey=${blobKey}`
+    : null;
 
   useEffect(() => {
     if (balance > 0) {
@@ -106,6 +113,17 @@ export default function FileBalanceCard({
   const statusColor = getStatusColor();
   const fileSizeMB = (fileSize / (1024 * 1024)).toFixed(2);
 
+  const handleCopyBlobKey = async () => {
+    if (!blobKey) return;
+    try {
+      await navigator.clipboard.writeText(blobKey);
+      setCopiedBlobKey(true);
+      setTimeout(() => setCopiedBlobKey(false), 1500);
+    } catch (err) {
+      console.error('Failed to copy blob key', err);
+    }
+  };
+
   return (
     <div className={`rounded-xl border-2 ${
       statusColor === 'red' ? 'border-red-200 bg-red-50' :
@@ -133,6 +151,34 @@ export default function FileBalanceCard({
           Copy
         </button>
       </div>
+
+      {/* Blob key + explorer */}
+      {blobKey && (
+        <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-800 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-blue-900">Blob key</span>
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={handleCopyBlobKey}
+                className={`inline-flex items-center space-x-1 px-2 py-1 rounded-md border text-[10px] ${copiedBlobKey ? 'border-green-300 bg-green-100 text-green-800' : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-100'}`}
+              >
+                <Copy className="w-3 h-3" />
+                <span>{copiedBlobKey ? 'Copied' : 'Copy'}</span>
+              </button>
+              {blobExplorerUrl && (
+                <button
+                  onClick={() => window.open(blobExplorerUrl, '_blank', 'noopener,noreferrer')}
+                  className="inline-flex items-center space-x-1 px-2 py-1 rounded-md border border-blue-200 bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  <span>Explorer</span>
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="font-mono break-all text-[11px] text-blue-900">{blobKey}</p>
+        </div>
+      )}
 
       {/* Balance Info */}
       <div className={`rounded-lg ${
