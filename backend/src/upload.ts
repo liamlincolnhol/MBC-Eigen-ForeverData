@@ -122,7 +122,8 @@ export async function handleUpload(req: express.Request, res: express.Response) 
     const certificate = Buffer.from(certificateBytes).toString('hex');
 
     // Extract blob key for explorer (keccak256 hash of the blob header/certificate)
-    const blobKey = computeBlobKeyFromCertificate(certificateBytes);
+    const computedBlobKey = computeBlobKeyFromCertificate(certificateBytes);
+    const blobKey = computedBlobKey.startsWith('0x') ? computedBlobKey : `0x${computedBlobKey}`;
 
     console.log(`Upload successful!`);
     console.log(`Certificate: 0x${certificate.slice(0, 20)}...`);
