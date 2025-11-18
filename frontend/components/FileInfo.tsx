@@ -11,10 +11,19 @@ export default function FileInfo({ metadata }: FileInfoProps) {
   const [copied, setCopied] = useState(false);
   const [blobKeyCopied, setBlobKeyCopied] = useState(false);
 
-  const blobExplorerBase = (process.env.NEXT_PUBLIC_BLOB_EXPLORER_URL || 'https://eigenda.xyz/blob-explorer').replace(/\/$/, '');
-  const blobExplorerUrl = metadata.blobKey
-    ? `${blobExplorerBase}${blobExplorerBase.includes('?') ? '&' : '?'}blobKey=${metadata.blobKey}`
-    : null;
+  const blobExplorerUrl = React.useMemo(() => {
+    if (!metadata.blobKey) return null;
+
+    const base = process.env.NEXT_PUBLIC_BLOB_EXPLORER_URL || 'https://blobs-sepolia.eigenda.xyz/blobs';
+    try {
+      const url = new URL(base);
+      url.searchParams.set('blobKey', metadata.blobKey);
+      return url.toString();
+    } catch (err) {
+      console.error('Failed to build blob explorer URL', err);
+      return null;
+    }
+  }, [metadata.blobKey]);
 
   const handleCopy = async () => {
     const success = await copyToClipboard(metadata.permanentLink);

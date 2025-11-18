@@ -2,11 +2,11 @@ import express from "express";
 import multer from "multer";
 import crypto from "crypto";
 import fetch from "node-fetch";
-import { keccak256 } from "ethers";
 import { insertFile } from "./db.js";
 import { eigenDAConfig } from "./config.js";
 import { calculateExpiry, getRemainingDays } from "./utils.js";
 import { calculateRequiredPayment, verifyPayment } from "./utils/payments.js";
+import { computeBlobKeyFromCertificate } from "./utils/blob.js";
 
 // Testing mode: Controlled by SKIP_PAYMENT_VERIFICATION environment variable
 const SKIP_PAYMENT_VERIFICATION = process.env.SKIP_PAYMENT_VERIFICATION === 'true';
@@ -121,8 +121,8 @@ export async function handleUpload(req: express.Request, res: express.Response) 
     const certificateBytes = new Uint8Array(certificateBuffer);
     const certificate = Buffer.from(certificateBytes).toString('hex');
 
-    // Extract blob key for explorer (keccak256 hash of certificate data)
-    const blobKey = keccak256(certificateBytes);
+    // Extract blob key for explorer (keccak256 hash of the blob header/certificate)
+    const blobKey = computeBlobKeyFromCertificate(certificateBytes);
 
     console.log(`Upload successful!`);
     console.log(`Certificate: 0x${certificate.slice(0, 20)}...`);

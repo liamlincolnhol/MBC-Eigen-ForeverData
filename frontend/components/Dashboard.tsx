@@ -242,6 +242,7 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
                     fileSize={file.fileSize ?? 0}
                     createdAt={file.createdAt}
                     permanentLink={openFileUrl(file.fileId)}
+                    blobKey={file.blobKey}
                     ownerAddress={file.payerAddress}
                     onTopUp={(balance, owner) => setTopUpTarget({ file, balance, owner })}
                     onView={() => handleView(file.fileId)}

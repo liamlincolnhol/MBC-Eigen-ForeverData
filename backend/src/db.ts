@@ -180,14 +180,16 @@ export async function getExpiringFiles(): Promise<any[]> {
 }
 
 // function to refresh the expiry date and blobId
-export async function refreshFileInfo(fileId: string, newBlobId: string): Promise<void> {
+export async function refreshFileInfo(fileId: string, newBlobId: string, blobKey?: string): Promise<void> {
   if (!db) throw new Error("Database not initialized");
   const sql = `
     UPDATE files
-    SET blobId = ?, expiry = datetime(CURRENT_TIMESTAMP, '+14 days')
+    SET blobId = ?,
+        blobKey = COALESCE(?, blobKey),
+        expiry = datetime(CURRENT_TIMESTAMP, '+14 days')
     WHERE fileId = ?
   `;
-  await db.run(sql, [newBlobId, fileId]);
+  await db.run(sql, [newBlobId, blobKey || null, fileId]);
 }
 
 // function to get file metadata
