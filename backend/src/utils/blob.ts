@@ -4,74 +4,51 @@ import protobuf from "protobufjs";
 type Uint8ArrayLike = Uint8Array | Buffer;
 
 const abiCoder = AbiCoder.defaultAbiCoder();
-const protoDescriptor = {
-  nested: {
-    common: {
-      options: {
-        go_package: "github.com/Layr-Labs/eigenda/api/grpc/common"
-      },
-      nested: {
-        v2: {
-          options: {
-            go_package: "github.com/Layr-Labs/eigenda/api/grpc/common/v2"
-          },
-          nested: {
-            BlobHeader: {
-              fields: {
-                version: { type: "uint32", id: 1 },
-                quorumNumbers: { rule: "repeated", type: "uint32", id: 2 },
-                commitment: { type: "common.BlobCommitment", id: 3 },
-                paymentHeader: { type: "PaymentHeader", id: 4 }
-              }
-            },
-            BlobCertificate: {
-              fields: {
-                blobHeader: { type: "BlobHeader", id: 1 },
-                signature: { type: "bytes", id: 2 },
-                relayKeys: { rule: "repeated", type: "uint32", id: 3 }
-              }
-            },
-            BatchHeader: {
-              fields: {
-                batchRoot: { type: "bytes", id: 1 },
-                referenceBlockNumber: { type: "uint64", id: 2 }
-              }
-            },
-            Batch: {
-              fields: {
-                header: { type: "BatchHeader", id: 1 },
-                blobCertificates: { rule: "repeated", type: "BlobCertificate", id: 2 }
-              }
-            },
-            PaymentHeader: {
-              fields: {
-                accountId: { type: "string", id: 1 },
-                timestamp: { type: "int64", id: 2 },
-                cumulativePayment: { type: "bytes", id: 3 }
-              }
-            }
-          }
-        },
-        G1Commitment: {
-          fields: {
-            x: { type: "bytes", id: 1 },
-            y: { type: "bytes", id: 2 }
-          }
-        },
-        BlobCommitment: {
-          fields: {
-            commitment: { type: "bytes", id: 1 },
-            lengthCommitment: { type: "bytes", id: 2 },
-            lengthProof: { type: "bytes", id: 3 },
-            length: { type: "uint32", id: 4 }
-          }
-        }
-      }
-    }
-  }
-};
+const commonProto = `
+syntax = "proto3";
+package common;
 
-const protoRoot = protobuf.Root.fromJSON(protoDescriptor as protobuf.INamespace);
+message G1Commitment {
+  bytes x = 1;
+  bytes y = 2;
+}
+
+message BlobCommitment {
+  bytes commitment = 1;
+  bytes length_commitment = 2;
+  bytes length_proof = 3;
+  uint32 length = 4;
+}
+`;
+
+const commonV2Proto = `
+syntax = "proto3";
+package common.v2;
+
+import "common/common.proto";
+
+message PaymentHeader {
+  string account_id = 1;
+  int64 timestamp = 2;
+  bytes cumulative_payment = 3;
+}
+
+message BlobHeader {
+  uint32 version = 1;
+  repeated uint32 quorum_numbers = 2;
+  common.BlobCommitment commitment = 3;
+  PaymentHeader payment_header = 4;
+}
+
+message BlobCertificate {
+  BlobHeader blob_header = 1;
+  bytes signature = 2;
+  repeated uint32 relay_keys = 3;
+}
+`;
+
+const protoRoot = protobuf.parse(commonProto).root;
+protobuf.parse(commonV2Proto, protoRoot);
 const blobCertificateType = protoRoot.lookupType("common.v2.BlobCertificate");
 
 function toHex(bytes: Uint8ArrayLike): string {
