@@ -4,16 +4,10 @@ import protobuf from "protobufjs";
 type Uint8ArrayLike = Uint8Array | Buffer;
 
 const abiCoder = AbiCoder.defaultAbiCoder();
-const commonProtoDefinition = `
+const protoDefinition = `
 syntax = "proto3";
+
 package common;
-
-option go_package = "github.com/Layr-Labs/eigenda/api/grpc/common";
-
-message G1Commitment {
-  bytes x = 1;
-  bytes y = 2;
-}
 
 message BlobCommitment {
   bytes commitment = 1;
@@ -21,15 +15,14 @@ message BlobCommitment {
   bytes length_proof = 3;
   uint32 length = 4;
 }
-`;
 
-const commonV2ProtoDefinition = `
-syntax = "proto3";
 package common.v2;
 
-import "common/common.proto";
-
-option go_package = "github.com/Layr-Labs/eigenda/api/grpc/common/v2";
+message PaymentHeader {
+  string account_id = 1;
+  int64 timestamp = 2;
+  bytes cumulative_payment = 3;
+}
 
 message BlobHeader {
   uint32 version = 1;
@@ -43,32 +36,9 @@ message BlobCertificate {
   bytes signature = 2;
   repeated uint32 relay_keys = 3;
 }
-
-message BatchHeader {
-  bytes batch_root = 1;
-  uint64 reference_block_number = 2;
-}
-
-message Batch {
-  BatchHeader header = 1;
-  repeated BlobCertificate blob_certificates = 2;
-}
-
-message BlobInclusionInfo {
-  BlobCertificate blob_certificate = 1;
-  BatchHeader batch_header = 2;
-  bytes inclusion_proof = 3;
-}
-
-message PaymentHeader {
-  string account_id = 1;
-  int64 timestamp = 2;
-  bytes cumulative_payment = 3;
-}
 `;
 
-const protoRoot = protobuf.parse(commonProtoDefinition).root;
-protobuf.parse(commonV2ProtoDefinition, protoRoot);
+const protoRoot = protobuf.parse(protoDefinition).root;
 const blobCertificateType = protoRoot.lookupType("common.v2.BlobCertificate");
 
 function toHex(bytes: Uint8ArrayLike): string {
