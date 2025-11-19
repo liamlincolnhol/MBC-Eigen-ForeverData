@@ -1,54 +1,13 @@
 import { AbiCoder, getBytes, keccak256 } from "ethers";
 import protobuf from "protobufjs";
+import eigendaDescriptor from "./eigenda_protos.json" with { type: "json" };
 
 type Uint8ArrayLike = Uint8Array | Buffer;
 
 const abiCoder = AbiCoder.defaultAbiCoder();
-const commonProto = `
-syntax = "proto3";
-package common;
-
-message G1Commitment {
-  bytes x = 1;
-  bytes y = 2;
-}
-
-message BlobCommitment {
-  bytes commitment = 1;
-  bytes length_commitment = 2;
-  bytes length_proof = 3;
-  uint32 length = 4;
-}
-`;
-
-const commonV2Proto = `
-syntax = "proto3";
-package common.v2;
-
-import "common/common.proto";
-
-message PaymentHeader {
-  string account_id = 1;
-  int64 timestamp = 2;
-  bytes cumulative_payment = 3;
-}
-
-message BlobHeader {
-  uint32 version = 1;
-  repeated uint32 quorum_numbers = 2;
-  common.BlobCommitment commitment = 3;
-  PaymentHeader payment_header = 4;
-}
-
-message BlobCertificate {
-  BlobHeader blob_header = 1;
-  bytes signature = 2;
-  repeated uint32 relay_keys = 3;
-}
-`;
-
-const protoRoot = protobuf.parse(commonProto).root;
-protobuf.parse(commonV2Proto, protoRoot);
+const protoRoot = protobuf.Root.fromJSON(
+  eigendaDescriptor as unknown as protobuf.INamespace
+);
 const blobCertificateType = protoRoot.lookupType("common.v2.BlobCertificate");
 
 function toHex(bytes: Uint8ArrayLike): string {
