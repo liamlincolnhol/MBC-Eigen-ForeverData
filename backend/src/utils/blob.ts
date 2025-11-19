@@ -4,7 +4,6 @@ import protobuf from "protobufjs";
 type Uint8ArrayLike = Uint8Array | Buffer;
 
 const abiCoder = AbiCoder.defaultAbiCoder();
-
 const protoDefinition = `
 syntax = "proto3";
 package common.v2;
