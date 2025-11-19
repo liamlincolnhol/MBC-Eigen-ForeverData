@@ -1,51 +1,42 @@
 import { AbiCoder, getBytes, keccak256 } from "ethers";
 import protobuf from "protobufjs";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
 
 type Uint8ArrayLike = Uint8Array | Buffer;
 
 const abiCoder = AbiCoder.defaultAbiCoder();
-const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
-function resolveRepoPath(...segments: string[]): string {
-  const candidates = [
-    path.resolve(process.cwd(), "..", ...segments),
-    path.resolve(process.cwd(), ...segments),
-    path.resolve(moduleDir, "../../..", ...segments)
-  ];
+const protoDefinition = `
+syntax = "proto3";
+package common.v2;
 
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) {
-      return candidate;
-    }
-  }
-
-  throw new Error(`Failed to resolve path for ${segments.join("/")}`);
+message BlobCommitment {
+  bytes commitment = 1;
+  bytes length_commitment = 2;
+  bytes length_proof = 3;
+  uint32 length = 4;
 }
 
-const protoPath = resolveRepoPath("eigenda", "api", "proto", "common", "v2", "common_v2.proto");
-const includeRoots = [
-  resolveRepoPath("eigenda", "api", "proto"),
-  path.dirname(protoPath)
-];
+message PaymentHeader {
+  string account_id = 1;
+  int64 timestamp = 2;
+  bytes cumulative_payment = 3;
+}
 
-const protoRoot = (() => {
-  const root = new protobuf.Root();
-  const originalResolve = root.resolvePath;
-  root.resolvePath = (origin, target) => {
-    for (const base of includeRoots) {
-      const candidate = path.join(base, target);
-      if (fs.existsSync(candidate)) {
-        return candidate;
-      }
-    }
-    return originalResolve.call(root, origin, target);
-  };
-  return protobuf.loadSync(protoPath, root);
-})();
+message BlobHeader {
+  uint32 version = 1;
+  repeated uint32 quorum_numbers = 2;
+  BlobCommitment commitment = 3;
+  PaymentHeader payment_header = 4;
+}
 
+message BlobCertificate {
+  BlobHeader blob_header = 1;
+  bytes signature = 2;
+  repeated uint32 relay_keys = 3;
+}
+`;
+
+const protoRoot = protobuf.parse(protoDefinition).root;
 const blobCertificateType = protoRoot.lookupType("common.v2.BlobCertificate");
 
 function toHex(bytes: Uint8ArrayLike): string {
