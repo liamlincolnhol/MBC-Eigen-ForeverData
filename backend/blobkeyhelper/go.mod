@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/Layr-Labs/cerberus-api v0.0.2-0.20250117193600-e69c5e8b08fd // indirect
-	github.com/Layr-Labs/eigenda v0.9.2 // indirect
+	github.com/Layr-Labs/eigenda v0.7.0 // indirect
 	github.com/Layr-Labs/eigensdk-go v0.2.0-beta.1.0.20250118004418-2a25f31b3b28 // indirect
 	github.com/Layr-Labs/eigensdk-go/signer v0.0.0-20250118004418-2a25f31b3b28 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -27,15 +27,15 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.20.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/consensys/gnark-crypto v0.18.0 // indirect
+	github.com/consensys/gnark-crypto v0.12.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
-	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a // indirect
-	github.com/crate-crypto/go-kzg-4844 v1.1.0 // indirect
+	github.com/crate-crypto/go-ipa v0.0.0-20240223125850-b1e8a79f509c // indirect
+	github.com/crate-crypto/go-kzg-4844 v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.0 // indirect
-	github.com/ethereum/go-ethereum v1.15.3 // indirect
+	github.com/ethereum/go-ethereum v1.14.13 // indirect
 	github.com/ethereum/go-verkle v0.2.2 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.5.0 // indirect
