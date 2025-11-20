@@ -2,7 +2,7 @@ module github.com/liamlincolnhol/mbc-eigen/backend
 
 go 1.24
 
-replace github.com/Layr-Labs/eigenda => ../eigenda
+
 
 require github.com/Layr-Labs/eigenda v0.0.0-00010101000000-000000000000
 
