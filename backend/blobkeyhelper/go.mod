@@ -1,6 +1,6 @@
 module github.com/liamlincolnhol/mbc-eigen/backend
 
-go 1.23.0
+go 1.22
 
 require (
 	github.com/Layr-Labs/cerberus-api v0.0.2-0.20250117193600-e69c5e8b08fd // indirect
