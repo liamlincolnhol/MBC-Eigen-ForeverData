@@ -1,13 +1,10 @@
 module github.com/liamlincolnhol/mbc-eigen/backend
 
-go 1.22
-
-
-
-require github.com/Layr-Labs/eigenda v0.0.0-00010101000000-000000000000
+go 1.23.0
 
 require (
 	github.com/Layr-Labs/cerberus-api v0.0.2-0.20250117193600-e69c5e8b08fd // indirect
+	github.com/Layr-Labs/eigenda v0.9.2 // indirect
 	github.com/Layr-Labs/eigensdk-go v0.2.0-beta.1.0.20250118004418-2a25f31b3b28 // indirect
 	github.com/Layr-Labs/eigensdk-go/signer v0.0.0-20250118004418-2a25f31b3b28 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
