@@ -1,6 +1,6 @@
 module github.com/liamlincolnhol/mbc-eigen/backend
 
-go 1.24
+go 1.22
 
 
 
