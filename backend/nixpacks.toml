@@ -4,4 +4,4 @@ providers = ["go", "node"]
 nixPkgs = ["go", "nodejs"]
 
 [phases.build]
-cmds = ["cd blobkeyhelper && go mod download && go build -o ../bin/blobkeyhelper . && cd .. && npm ci && npm run build"]
+cmds = ["cd blobkeyhelper && go mod download && go build -o ../bin/blobkeyhelper ./cmd/blobkeyhelper && cd .. && npm ci && npm run build"]

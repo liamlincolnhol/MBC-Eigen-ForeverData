@@ -148,5 +148,5 @@ To deploy on Railway, configure the service as follows:
 2. **Build Command**: Use the following command to build the Go helper and Node backend:
 
 ```bash
-cd blobkeyhelper && go mod download && go build -o ../bin/blobkeyhelper . && cd .. && npm ci && npm run build
+cd blobkeyhelper && go mod download && go build -o ../bin/blobkeyhelper ./cmd/blobkeyhelper && cd .. && npm ci && npm run build
 ```
