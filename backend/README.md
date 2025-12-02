@@ -31,6 +31,12 @@ Health check endpoint.
 - Returns service status
 - Used for monitoring
 
+### GET `/api/eigenda/account-blobs`
+Proxy endpoint that surfaces the recent blobs confirmed by EigenDA for the configured payment account.
+- Accepts optional `accountId`, `direction`, `before`, `after`, and `limit` query params
+- Falls back to the `EIGENDA_DATA_API_ACCOUNT_ID` environment variable
+- Response contains normalized blob metadata (commitment, tx hash, confirmation time) suitable for dashboards
+
 ## Setup
 
 1. Install dependencies:
@@ -44,6 +50,17 @@ PORT=3000
 EIGENDA_AUTH_PK=your_private_key
 EIGENDA_ETH_ADDRESS=your_eth_address
 EIGENDA_PROXY_SEPOLIA=https://your-proxy-url
+EIGENDA_DATA_API_URL=https://dataapi-testnet-sepolia.eigenda.xyz/api/v2
+EIGENDA_DATA_API_ACCOUNT_ID=your_eigenda_payment_account
+```
+
+Optional tunables:
+
+```env
+# Override defaults if you need longer timeouts or more blobs per request
+EIGENDA_DATA_API_TIMEOUT_MS=15000
+EIGENDA_DATA_API_LIMIT=20
+EIGENDA_DATA_API_DIRECTION=backward
 ```
 
 3. Initialize database:

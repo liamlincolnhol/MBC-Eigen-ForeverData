@@ -5,10 +5,11 @@ import { v4 } from "uuid";
 import { handleUpload } from "./upload.js";
 import { handleChunkUpload } from "./uploadChunk.js";
 import { handleFetch } from "./fetch.js";
-import { logEigenDAConfig } from "./config.js";
+import { logEigenDAConfig, eigenDADataApiConfig } from "./config.js";
 import { refreshFiles } from "./jobs/refresh.js";
 import { initializeDb, getExpiringFiles, getFileMetadata, getAllFiles, getFilesByOwner } from "./db.js";
 import { calculateRequiredPayment, calculateChunkedPayment } from "./utils/payments.js";
+import { fetchAccountBlobs } from "./utils/dataApi.js";
 
 const app = express();
 
@@ -166,6 +167,40 @@ app.get("/api/files", async (req, res) => {
   } catch (error) {
     console.error("Error fetching files:", error);
     res.status(500).json({ error: "Failed to fetch files" });
+  }
+});
+
+// EigenDA Account Blobs endpoint
+// Fetches recent blobs via EigenDA Data API filtered by the configured account
+app.get("/api/eigenda/account-blobs", async (req, res) => {
+  try {
+    const accountParam = typeof req.query.accountId === 'string' ? req.query.accountId.trim() : undefined;
+    const accountId = accountParam || eigenDADataApiConfig.defaultAccountId;
+
+    if (!accountId) {
+      return res.status(400).json({ error: 'accountId query parameter is required when EIGENDA_DATA_API_ACCOUNT_ID is not set' });
+    }
+
+    const limitParam = typeof req.query.limit === 'string' ? Number(req.query.limit) : undefined;
+    const limit = Number.isFinite(limitParam) ? limitParam : undefined;
+    const directionParam = typeof req.query.direction === 'string' ? req.query.direction.toLowerCase() : undefined;
+    const direction = directionParam === 'forward' || directionParam === 'backward' ? directionParam : undefined;
+    const before = typeof req.query.before === 'string' ? req.query.before : undefined;
+    const after = typeof req.query.after === 'string' ? req.query.after : undefined;
+
+    const blobs = await fetchAccountBlobs({
+      accountId,
+      limit,
+      direction,
+      before,
+      after
+    });
+
+    res.json(blobs);
+  } catch (error) {
+    console.error('Error fetching EigenDA account blobs:', error);
+    const message = error instanceof Error ? error.message : 'Failed to fetch EigenDA blobs';
+    res.status(500).json({ error: message });
   }
 });
 
