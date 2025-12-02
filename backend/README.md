@@ -162,8 +162,8 @@ npm start
 To deploy on Railway, configure the service as follows:
 
 1. **Root Directory**: Set to `/MBC-Eigen-ForeverData` (the parent directory).
-2. **Build Command**: Use the following command to build the Go helper and Node backend:
+2. **Build Command**: Install dependencies and build the TypeScript backend:
 
 ```bash
-cd blobkeyhelper && go mod download && go build -o ../bin/blobkeyhelper ./cmd/blobkeyhelper && cd .. && npm ci && npm run build
+npm ci && npm run build
 ```

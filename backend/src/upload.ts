@@ -6,7 +6,6 @@ import { insertFile } from "./db.js";
 import { eigenDAConfig } from "./config.js";
 import { calculateExpiry, getRemainingDays } from "./utils.js";
 import { calculateRequiredPayment, verifyPayment } from "./utils/payments.js";
-import { computeBlobKeyFromCertificate } from "./utils/blob.js";
 
 // Testing mode: Controlled by SKIP_PAYMENT_VERIFICATION environment variable
 const SKIP_PAYMENT_VERIFICATION = process.env.SKIP_PAYMENT_VERIFICATION === 'true';
@@ -121,13 +120,9 @@ export async function handleUpload(req: express.Request, res: express.Response) 
     const certificateBytes = new Uint8Array(certificateBuffer);
     const certificate = Buffer.from(certificateBytes).toString('hex');
 
-    // Extract blob key for explorer (keccak256 hash of the blob header/certificate)
-    const computedBlobKey = computeBlobKeyFromCertificate(certificateBytes);
-    const blobKey = computedBlobKey.startsWith('0x') ? computedBlobKey : `0x${computedBlobKey}`;
-
     console.log(`Upload successful!`);
     console.log(`Certificate: 0x${certificate.slice(0, 20)}...`);
-    console.log(`Blob Key: ${blobKey}`);
+    console.log(`EigenDA confirmation available via Data API feed`);
 
     // Store in database
     const expiry = calculateExpiry(targetDuration);
@@ -141,7 +136,7 @@ export async function handleUpload(req: express.Request, res: express.Response) 
       walletAddress ? 'paid' : 'pending',
       walletAddress,
       undefined,
-      blobKey
+      undefined
     );
 
     // Respond with metadata
@@ -154,7 +149,7 @@ export async function handleUpload(req: express.Request, res: express.Response) 
       permanentLink: `https://api.foreverdata.live/f/${fileId}`,
       blobId: `0x${certificate}`,
       currentBlobId: `0x${certificate}`,
-      blobKey,
+      blobKey: null,
       expiryDate: expiry,
       daysRemaining: getRemainingDays(expiry),
       refreshHistory: []

@@ -1,10 +1,4 @@
-providers = ["go", "node"]
-
-[phases.setup]
-nixPkgs = ["go"]
-
-[variables]
-GOTOOLCHAIN = "local"
+providers = ["node"]
 
 [phases.build]
-cmds = ["cd blobkeyhelper && go mod download && go build -o ../bin/blobkeyhelper ./cmd/blobkeyhelper && cd .. && npm ci && npm run build"]
+cmds = ["npm ci && npm run build"]

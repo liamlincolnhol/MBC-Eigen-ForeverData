@@ -30,7 +30,6 @@ import { eigenDAConfig } from "../config.js";
 import cron from "node-cron";
 import { getContractInstance, getSignedContract } from "../utils/contract.js";
 import { calculateRefreshCost, checkSufficientBalance, formatEth } from "../utils/payments.js";
-import { computeBlobKeyFromCertificate } from "../utils/blob.js";
 
 // Step 2: Function to check and update contract balances
 async function updateContractBalances() {
@@ -183,13 +182,12 @@ export async function refreshFiles() {
             const certificateBuffer = await disperseResponse.arrayBuffer();
             const certificateBytes = new Uint8Array(certificateBuffer);
             const newBlobId = Buffer.from(certificateBytes).toString('hex');
-            const newBlobKey = computeBlobKeyFromCertificate(certificateBytes);
 
             console.log(`New Blob ID: 0x${newBlobId.slice(0, 20)}...`);
-            console.log(`New Blob Key: ${newBlobKey}`);
+            console.log(`EigenDA confirmation available via Data API feed`);
 
-            // 2d. Update database with new blobId, blobKey and expiry
-            await refreshFileInfo(file.fileId, newBlobId, newBlobKey);
+            // 2d. Update database with new blobId and expiry
+            await refreshFileInfo(file.fileId, newBlobId);
 
             console.log(`Refreshed file ${file.fileId} successfully`);
         } catch (err: any) {
