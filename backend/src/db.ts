@@ -267,6 +267,34 @@ export async function getFilesByOwner(walletAddress: string): Promise<any[]> {
   return rows || [];
 }
 
+// Files missing blobKey (optionally filtered by payerAddress)
+export async function getFilesMissingBlobKey(accountId?: string): Promise<any[]> {
+  if (!db) throw new Error("Database not initialized");
+  const params: any[] = [];
+  let sql = `
+    SELECT fileId, createdAt, fileSize, payerAddress
+    FROM files
+    WHERE blobKey IS NULL
+      AND paymentStatus IN ('paid', 'pending')
+  `;
+
+  if (accountId) {
+    sql += ' AND LOWER(payerAddress) = LOWER(?)';
+    params.push(accountId);
+  }
+
+  sql += ' ORDER BY createdAt DESC LIMIT 100';
+
+  const rows = await db.all(sql, params);
+  return rows || [];
+}
+
+export async function setFileBlobKey(fileId: string, blobKey: string): Promise<void> {
+  if (!db) throw new Error("Database not initialized");
+  const sql = `UPDATE files SET blobKey = ? WHERE fileId = ?`;
+  await db.run(sql, [blobKey, fileId]);
+}
+
 // function to update contract balance info
 export async function updateContractBalance(
   fileId: string,

@@ -10,6 +10,7 @@ import { refreshFiles } from "./jobs/refresh.js";
 import { initializeDb, getExpiringFiles, getFileMetadata, getAllFiles, getFilesByOwner } from "./db.js";
 import { calculateRequiredPayment, calculateChunkedPayment } from "./utils/payments.js";
 import { fetchAccountBlobs } from "./utils/dataApi.js";
+import { syncBlobKeysForAccount } from "./utils/blobKeySync.js";
 
 const app = express();
 
@@ -153,6 +154,13 @@ app.post("/api/generate-fileid", async (req, res) => {
 app.get("/api/files", async (req, res) => {
   try {
     const { walletAddress } = req.query;
+
+    // Opportunistically sync blobKeys for our account before returning files
+    try {
+      await syncBlobKeysForAccount();
+    } catch (err) {
+      console.warn('BlobKey sync failed (non-blocking):', err);
+    }
 
     let files;
     if (walletAddress && typeof walletAddress === 'string') {

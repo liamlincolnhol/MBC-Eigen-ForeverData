@@ -25,6 +25,7 @@ interface EigenDADataApiConfig {
 }
 
 const DEFAULT_DATA_API_URL = 'https://dataapi-testnet-sepolia.eigenda.xyz/api/v2';
+const DEFAULT_ACCOUNT_FALLBACK = '0xddee9412ed785bd644fc676ac4f7ba8d1ce928eb';
 
 export const eigenDAConfig: EigenDAConfig = {
   proxyUrl: process.env.EIGENDA_PROXY_URL || 'http://localhost:3100',
@@ -38,7 +39,7 @@ export const eigenDADataApiConfig: EigenDADataApiConfig = {
   defaultDirection: (process.env.EIGENDA_DATA_API_DIRECTION as 'forward' | 'backward') || 'backward',
   defaultLimit: Number(process.env.EIGENDA_DATA_API_LIMIT || 10),
   maxLimit: 1000,
-  defaultAccountId: process.env.EIGENDA_DATA_API_ACCOUNT_ID || process.env.EIGENDA_ETH_ADDRESS || undefined
+  defaultAccountId: process.env.EIGENDA_DATA_API_ACCOUNT_ID || process.env.EIGENDA_ETH_ADDRESS || DEFAULT_ACCOUNT_FALLBACK
 };
 
 // Utility function to log configuration on startup
