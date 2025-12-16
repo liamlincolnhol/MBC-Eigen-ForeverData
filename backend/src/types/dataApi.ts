@@ -1,5 +1,35 @@
+export interface BlobCommitments {
+  commitment?: string;
+  lengthCommitment?: string;
+  lengthProof?: string;
+  length?: number;
+}
+
+export interface BlobPaymentMetadata {
+  accountId?: string;
+  timestamp?: number;
+  cumulativePayment?: string;
+}
+
+export interface BlobHeader {
+  blobVersion?: number;
+  blobCommitments?: BlobCommitments;
+  quorumNumbers?: number[];
+  paymentMetadata?: BlobPaymentMetadata;
+}
+
+export interface BlobMetadata {
+  blobHeader?: BlobHeader;
+  signature?: string;
+  blobStatus?: string;
+  blobSizeBytes?: number;
+  requestedAt?: number;
+  expiryUnixSec?: number;
+}
+
 export interface AccountBlob {
   blobId?: string;
+  blobKey?: string;
   accountId?: string;
   commitment?: string;
   txHash?: string;
@@ -9,6 +39,7 @@ export interface AccountBlob {
   length?: number;
   submittedAt?: string;
   confirmedAt?: string;
+  blobMetadata?: BlobMetadata;
   raw: Record<string, unknown>;
 }
 

@@ -4,7 +4,11 @@ import type {
   AccountBlobResponse,
   FetchAccountBlobParams,
   AccountBlob,
-  AccountBlobPagination
+  AccountBlobPagination,
+  BlobMetadata,
+  BlobHeader,
+  BlobCommitments,
+  BlobPaymentMetadata
 } from "../types/dataApi.js";
 
 const isRecord = (value: unknown): value is Record<string, any> =>
@@ -58,6 +62,115 @@ const extractEntryArray = (payload: unknown): unknown[] => {
   return [];
 };
 
+const toNumberArray = (value: unknown): number[] | undefined => {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const normalized = value
+    .map((entry) => toNumber(entry))
+    .filter((entry): entry is number => typeof entry === 'number');
+  return normalized.length > 0 ? normalized : undefined;
+};
+
+const getRecord = (value: unknown, keys: string[]): Record<string, any> | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  for (const key of keys) {
+    const candidate = value[key];
+    if (isRecord(candidate)) {
+      return candidate;
+    }
+  }
+  return undefined;
+};
+
+const normalizeBlobCommitments = (value: unknown): BlobCommitments | undefined => {
+  const record = getRecord(value, ['blobCommitments', 'blob_commitments']);
+  if (!record) {
+    return undefined;
+  }
+
+  return {
+    commitment: toStringValue(record.commitment),
+    lengthCommitment: toStringValue(record.lengthCommitment ?? record.length_commitment),
+    lengthProof: toStringValue(record.lengthProof ?? record.length_proof),
+    length: toNumber(record.length)
+  };
+};
+
+const normalizeBlobPaymentMetadata = (value: unknown): BlobPaymentMetadata | undefined => {
+  const record = getRecord(value, ['paymentMetadata', 'payment_metadata']);
+  if (!record) {
+    return undefined;
+  }
+
+  return {
+    accountId: toStringValue(record.accountId ?? record.account_id),
+    timestamp: toNumber(record.timestamp),
+    cumulativePayment: toStringValue(record.cumulativePayment ?? record.cumulative_payment)
+  };
+};
+
+const normalizeBlobHeader = (value: unknown): BlobHeader | undefined => {
+  const record = getRecord(value, ['blobHeader', 'blob_header']);
+  if (!record) {
+    return undefined;
+  }
+
+  return {
+    blobVersion: toNumber(record.blobVersion ?? record.blob_version),
+    blobCommitments: normalizeBlobCommitments(record),
+    quorumNumbers: toNumberArray(record.quorumNumbers ?? record.quorum_numbers),
+    paymentMetadata: normalizeBlobPaymentMetadata(record)
+  };
+};
+
+const normalizeBlobMetadata = (value: unknown): BlobMetadata | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  return {
+    blobHeader: normalizeBlobHeader(value),
+    signature: toStringValue(value.signature),
+    blobStatus: toStringValue(value.blobStatus ?? value.blob_status),
+    blobSizeBytes: toNumber(value.blobSizeBytes ?? value.blob_size_bytes),
+    requestedAt: toNumber(value.requestedAt ?? value.requested_at),
+    expiryUnixSec: toNumber(value.expiryUnixSec ?? value.expiry_unix_sec)
+  };
+};
+
+const toIsoStringFromTimestamp = (value: number | undefined, unit: 'ns' | 'us' | 'ms' | 's'): string | undefined => {
+  if (typeof value !== 'number') {
+    return undefined;
+  }
+
+  let milliseconds: number | undefined;
+  switch (unit) {
+    case 'ns':
+      milliseconds = Math.floor(value / 1_000_000);
+      break;
+    case 'us':
+      milliseconds = Math.floor(value / 1_000);
+      break;
+    case 'ms':
+      milliseconds = value;
+      break;
+    case 's':
+      milliseconds = value * 1000;
+      break;
+    default:
+      milliseconds = undefined;
+  }
+
+  if (typeof milliseconds !== 'number' || !Number.isFinite(milliseconds)) {
+    return undefined;
+  }
+
+  return new Date(milliseconds).toISOString();
+};
+
 const extractPagination = (payload: unknown): AccountBlobPagination | undefined => {
   if (!isRecord(payload)) {
     return undefined;
@@ -98,18 +211,56 @@ const normalizeAccountBlob = (entry: unknown, fallbackAccountId: string): Accoun
   }
 
   const embeddedBlob = isRecord(entry.blob) ? entry.blob : undefined;
+  const blobMetadata = normalizeBlobMetadata(entry.blobMetadata ?? entry.blob_metadata ?? embeddedBlob?.metadata);
+  const blobHeader = blobMetadata?.blobHeader;
+  const commitments = blobHeader?.blobCommitments;
+  const paymentMetadata = blobHeader?.paymentMetadata;
 
   return {
     blobId: toStringValue(entry.blobId ?? entry.blob_id ?? entry.id ?? embeddedBlob?.id),
-    accountId: toStringValue(entry.accountId ?? entry.account_id ?? entry.owner ?? fallbackAccountId),
-    commitment: toStringValue(entry.commitment ?? entry.blobCommitment ?? entry.blob_commitment ?? embeddedBlob?.commitment),
+    blobKey: toStringValue(entry.blobKey ?? entry.blob_key ?? embeddedBlob?.blobKey ?? embeddedBlob?.blob_key),
+    accountId: toStringValue(
+      entry.accountId ??
+      entry.account_id ??
+      entry.owner ??
+      paymentMetadata?.accountId ??
+      fallbackAccountId
+    ),
+    commitment: toStringValue(
+      entry.commitment ??
+      entry.blobCommitment ??
+      entry.blob_commitment ??
+      embeddedBlob?.commitment ??
+      commitments?.commitment
+    ),
     txHash: toStringValue(entry.txHash ?? entry.tx_hash ?? entry.transactionHash ?? entry.transaction_hash),
-    status: toStringValue(entry.status ?? entry.blob_status ?? entry.blobStatus),
+    status: toStringValue(entry.status ?? entry.blob_status ?? entry.blobStatus ?? blobMetadata?.blobStatus),
     blockNumber: toNumber(entry.blockNumber ?? entry.block_number ?? entry.blockHeight ?? entry.block),
     slot: toNumber(entry.slot ?? entry.slotNumber),
-    length: toNumber(entry.length ?? entry.size ?? entry.blob_length ?? entry.totalSize ?? entry.total_length),
-    submittedAt: toStringValue(entry.submittedAt ?? entry.submitted_at ?? entry.createdAt ?? entry.created_at ?? entry.timestamp),
-    confirmedAt: toStringValue(entry.confirmedAt ?? entry.confirmed_at ?? entry.finalizedAt ?? entry.finalized_at),
+    length: toNumber(
+      entry.length ??
+      entry.size ??
+      entry.blob_length ??
+      entry.totalSize ??
+      entry.total_length ??
+      blobMetadata?.blobSizeBytes
+    ),
+    submittedAt: toStringValue(
+      entry.submittedAt ??
+      entry.submitted_at ??
+      entry.createdAt ??
+      entry.created_at ??
+      entry.timestamp ??
+      toIsoStringFromTimestamp(blobMetadata?.requestedAt, 'ns')
+    ),
+    confirmedAt: toStringValue(
+      entry.confirmedAt ??
+      entry.confirmed_at ??
+      entry.finalizedAt ??
+      entry.finalized_at ??
+      toIsoStringFromTimestamp(blobMetadata?.expiryUnixSec, 's')
+    ),
+    blobMetadata,
     raw: entry
   };
 };

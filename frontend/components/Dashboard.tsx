@@ -350,16 +350,17 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
               ) : (
                 <ul className="space-y-3">
                   {recentBlobs.map((blob, index) => {
-                    const key = blob.blobId || blob.txHash || `blob-${index}`;
+                    const identifier = blob.blobKey || blob.blobId || blob.txHash;
+                    const key = identifier || `blob-${index}`;
                     const blockLabel = blob.blockNumber ? `Block #${blob.blockNumber}` : 'Pending block';
-                    const statusLabel = formatStatusLabel(blob.status);
+                    const statusLabel = formatStatusLabel(blob);
                     const timeLabel = formatTimestampLabel(blob);
 
                     return (
                       <li key={key} className="rounded-xl border border-white/10 bg-slate-900/40 p-4">
                         <div className="flex items-center justify-between text-xs text-white/70">
                           <span className="font-mono text-[11px] text-white truncate pr-3">
-                            {shortenHash(blob.blobId || blob.txHash)}
+                            {shortenHash(identifier || undefined)}
                           </span>
                           <div className="flex items-center gap-2 text-[11px]">
                             {statusLabel && (
@@ -380,7 +381,7 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
                               <Clock className="w-3 h-3 text-white/40" />
                               <span>{timeLabel}</span>
                             </div>
-                            <span>{formatBlobSize(blob.length)}</span>
+                            <span>{formatBlobSize(blob)}</span>
                           </div>
                         </div>
                       </li>
@@ -452,7 +453,18 @@ const shortenHash = (value?: string, visibleChars = 6) => {
   return `${prefix}…${suffix}`;
 };
 
-const formatBlobSize = (length?: number) => {
+const getBlobLength = (blob: AccountBlob): number | undefined => {
+  if (typeof blob.length === 'number') {
+    return blob.length;
+  }
+  if (typeof blob.blobMetadata?.blobSizeBytes === 'number') {
+    return blob.blobMetadata.blobSizeBytes;
+  }
+  return undefined;
+};
+
+const formatBlobSize = (blob: AccountBlob) => {
+  const length = getBlobLength(blob);
   if (!length || length <= 0) return 'Size unknown';
   const mib = length / (1024 * 1024);
   if (mib >= 1) {
@@ -465,13 +477,17 @@ const formatBlobSize = (length?: number) => {
   return `${length} bytes`;
 };
 
-const formatStatusLabel = (status?: string) => {
+const formatStatusLabel = (blob: AccountBlob) => {
+  const status = blob.status || blob.blobMetadata?.blobStatus;
   if (!status) return '';
   return status.replace(/_/g, ' ');
 };
 
 const formatTimestampLabel = (blob: AccountBlob) => {
-  const timestamp = blob.confirmedAt || blob.submittedAt;
+  const fallbackRequested = typeof blob.blobMetadata?.requestedAt === 'number'
+    ? new Date(Math.floor(blob.blobMetadata.requestedAt / 1_000_000)).toISOString()
+    : undefined;
+  const timestamp = blob.confirmedAt || blob.submittedAt || fallbackRequested;
   if (!timestamp) {
     return 'Awaiting confirmation';
   }
