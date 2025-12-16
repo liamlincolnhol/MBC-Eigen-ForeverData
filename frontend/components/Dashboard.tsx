@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { X, FileText, AlertCircle, Loader2, ExternalLink, Copy, RefreshCcw, Globe2, User, ShieldCheck, Hash, Clock } from 'lucide-react';
+import { X, FileText, AlertCircle, Loader2, ExternalLink, Copy, RefreshCcw, Globe2, User } from 'lucide-react';
 import { useAccount } from 'wagmi';
 import FileBalanceCard from './FileBalanceCard';
 import TopUpModal from './TopUpModal';
-import type { AccountBlob, AccountBlobResponse } from '../types/eigenda';
+import type { AccountBlob } from '../types/eigenda';
 
 interface FileData {
   fileId: string;
@@ -36,10 +36,6 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
   const [topUpTarget, setTopUpTarget] = useState<{ file: FileData; balance: bigint; owner: string | null } | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('global');
   const fetchIdRef = useRef(0);
-  const [recentBlobs, setRecentBlobs] = useState<AccountBlob[]>([]);
-  const [blobLoading, setBlobLoading] = useState(false);
-  const [blobError, setBlobError] = useState<string | null>(null);
-  const blobFetchIdRef = useRef(0);
 
   const fetchFiles = useCallback(async (mode: ViewMode) => {
     if (mode === 'mine' && (!address || !isConnected)) {
@@ -80,35 +76,6 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
     }
   }, [address, isConnected]);
 
-  const fetchEigenBlobs = useCallback(async () => {
-    const requestId = blobFetchIdRef.current + 1;
-    blobFetchIdRef.current = requestId;
-
-    try {
-      setBlobLoading(true);
-      setBlobError(null);
-      const params = new URLSearchParams({ limit: '8', direction: 'backward' });
-      const response = await fetch(`${API_BASE_URL}/api/eigenda/account-blobs?${params.toString()}`);
-      if (!response.ok) {
-        throw new Error('Failed to sync EigenDA blobs');
-      }
-      const data: AccountBlobResponse = await response.json();
-      if (blobFetchIdRef.current === requestId) {
-        const blobs = Array.isArray(data?.blobs) ? data.blobs : [];
-        setRecentBlobs(blobs);
-      }
-    } catch (err) {
-      if (blobFetchIdRef.current === requestId) {
-        setRecentBlobs([]);
-        setBlobError(err instanceof Error ? err.message : 'Unable to load EigenDA blobs');
-      }
-    } finally {
-      if (blobFetchIdRef.current === requestId) {
-        setBlobLoading(false);
-      }
-    }
-  }, []);
-
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -129,12 +96,10 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
   }, [isOpen, viewMode, isConnected, address, fetchFiles]);
 
   useEffect(() => {
-    if (!isOpen || viewMode !== 'global') {
+    if (isOpen && viewMode === 'global') {
       return;
     }
-
-    void fetchEigenBlobs();
-  }, [isOpen, viewMode, fetchEigenBlobs]);
+  }, [isOpen, viewMode]);
 
   useEffect(() => {
     setTopUpTarget(null);
@@ -174,13 +139,10 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
 
   const refreshDisabled = viewMode === 'mine'
     ? (!isConnected || !address || loading)
-    : loading || blobLoading;
+    : loading;
 
   const handleRefreshClick = () => {
     void fetchFiles(viewMode);
-    if (viewMode === 'global') {
-      void fetchEigenBlobs();
-    }
   };
 
   return (
@@ -312,85 +274,6 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
             </div>
           )}
 
-          {viewMode === 'global' && (
-            <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-slate-900/70 to-slate-900/30 p-5">
-              <div className="flex items-center justify-between gap-3 mb-4">
-                <div>
-                  <div className="flex items-center gap-2 text-sm font-semibold text-white">
-                    <ShieldCheck className="w-4 h-4 text-emerald-300" />
-                    <span>EigenDA confirmations</span>
-                  </div>
-                  <p className="text-xs text-white/60 mt-1">
-                    Recent blobs pulled directly from the EigenDA Data API feed.
-                  </p>
-                </div>
-                <button
-                  onClick={() => fetchEigenBlobs()}
-                  disabled={blobLoading}
-                  className="inline-flex items-center space-x-1 rounded-full border border-white/20 px-3 py-1.5 text-white/80 hover:bg-white/10 disabled:opacity-50"
-                >
-                  <RefreshCcw className="w-3 h-3" />
-                  <span>Sync feed</span>
-                </button>
-              </div>
-
-              {blobLoading && recentBlobs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-6 text-white/60">
-                  <Loader2 className="w-5 h-5 animate-spin mb-2" />
-                  <p>Contacting EigenDA…</p>
-                </div>
-              ) : blobError ? (
-                <div className="p-4 text-center text-red-200 bg-red-500/10 border border-red-500/30 rounded-xl text-sm">
-                  <p>{blobError}</p>
-                </div>
-              ) : recentBlobs.length === 0 ? (
-                <div className="p-4 text-center text-white/60 bg-white/5 border border-white/10 rounded-xl text-sm">
-                  <p>No EigenDA blobs found for this account yet.</p>
-                </div>
-              ) : (
-                <ul className="space-y-3">
-                  {recentBlobs.map((blob, index) => {
-                    const identifier = blob.blobKey || blob.blobId || blob.txHash;
-                    const key = identifier || `blob-${index}`;
-                    const blockLabel = blob.blockNumber ? `Block #${blob.blockNumber}` : 'Pending block';
-                    const statusLabel = formatStatusLabel(blob);
-                    const timeLabel = formatTimestampLabel(blob);
-
-                    return (
-                      <li key={key} className="rounded-xl border border-white/10 bg-slate-900/40 p-4">
-                        <div className="flex items-center justify-between text-xs text-white/70">
-                          <span className="font-mono text-[11px] text-white truncate pr-3">
-                            {shortenHash(identifier || undefined)}
-                          </span>
-                          <div className="flex items-center gap-2 text-[11px]">
-                            {statusLabel && (
-                              <span className="uppercase tracking-wider px-2 py-0.5 rounded-full border border-white/20 text-white/70">
-                                {statusLabel}
-                              </span>
-                            )}
-                            <span className="text-white/50">{blockLabel}</span>
-                          </div>
-                        </div>
-                        <div className="mt-3 flex flex-col gap-2 text-[11px] text-white/70">
-                          <div className="flex items-center gap-2">
-                            <Hash className="w-3 h-3 text-white/50" />
-                            <span className="font-mono truncate">{shortenHash(blob.commitment, 10)}</span>
-                          </div>
-                          <div className="flex items-center justify-between gap-2 flex-wrap text-white/60">
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3 text-white/40" />
-                              <span>{timeLabel}</span>
-                            </div>
-                            <span>{formatBlobSize(blob)}</span>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          )}
         </div>
 
         {activeFiles.length > 0 && isConnected && (
@@ -481,19 +364,4 @@ const formatStatusLabel = (blob: AccountBlob) => {
   const status = blob.status || blob.blobMetadata?.blobStatus;
   if (!status) return '';
   return status.replace(/_/g, ' ');
-};
-
-const formatTimestampLabel = (blob: AccountBlob) => {
-  const fallbackRequested = typeof blob.blobMetadata?.requestedAt === 'number'
-    ? new Date(Math.floor(blob.blobMetadata.requestedAt / 1_000_000)).toISOString()
-    : undefined;
-  const timestamp = blob.confirmedAt || blob.submittedAt || fallbackRequested;
-  if (!timestamp) {
-    return 'Awaiting confirmation';
-  }
-  const parsed = new Date(timestamp);
-  if (Number.isNaN(parsed.getTime())) {
-    return timestamp;
-  }
-  return parsed.toLocaleString();
 };
