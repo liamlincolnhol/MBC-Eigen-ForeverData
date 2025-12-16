@@ -326,42 +326,4 @@ export default function Dashboard({ isOpen, onClose }: DashboardProps) {
   );
 }
 
-const shortenHash = (value?: string, visibleChars = 6) => {
-  if (!value) return '—';
-  if (value.length <= visibleChars * 2) {
-    return value;
-  }
-  const prefix = value.slice(0, visibleChars);
-  const suffix = value.slice(-visibleChars);
-  return `${prefix}…${suffix}`;
-};
-
-const getBlobLength = (blob: AccountBlob): number | undefined => {
-  if (typeof blob.length === 'number') {
-    return blob.length;
-  }
-  if (typeof blob.blobMetadata?.blobSizeBytes === 'number') {
-    return blob.blobMetadata.blobSizeBytes;
-  }
-  return undefined;
-};
-
-const formatBlobSize = (blob: AccountBlob) => {
-  const length = getBlobLength(blob);
-  if (!length || length <= 0) return 'Size unknown';
-  const mib = length / (1024 * 1024);
-  if (mib >= 1) {
-    return `${mib.toFixed(2)} MiB`;
-  }
-  const kib = length / 1024;
-  if (kib >= 1) {
-    return `${kib.toFixed(2)} KiB`;
-  }
-  return `${length} bytes`;
-};
-
-const formatStatusLabel = (blob: AccountBlob) => {
-  const status = blob.status || blob.blobMetadata?.blobStatus;
-  if (!status) return '';
-  return status.replace(/_/g, ' ');
-};
+// Removed EigenDA feed helpers (shortenHash/formatBlobSize/formatStatusLabel) since the feed is gone.
