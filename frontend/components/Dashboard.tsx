@@ -3,7 +3,6 @@ import { X, FileText, AlertCircle, Loader2, ExternalLink, Copy, RefreshCcw, Glob
 import { useAccount } from 'wagmi';
 import FileBalanceCard from './FileBalanceCard';
 import TopUpModal from './TopUpModal';
-import type { AccountBlob } from '../types/eigenda';
 
 interface FileData {
   fileId: string;
